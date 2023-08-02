@@ -44,7 +44,7 @@ The following Motion-Index convention should be used:
 
 Groups should also submit a `README.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom in a spatial element across `p`-indices:
 ```
-{"h":[100,200,400], "p"=[1,8,27]}
+{"h0":100, "h1":200, "h2":400, "p0":1, "p1":8, "p2":27}
 ```
 
 ## Data format

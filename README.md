@@ -70,8 +70,13 @@ NaN, 8.2345720, 25.29479238, 28.2984759, NaN
 
 # Working group notes
 
+## 2 August, 2023
+- Small group due to meeting conflicts.
+- Notre Dame group running initial testing of their implementation on 2024 motions.
+- MIT group have output processing in-place and have from Cylinder motion 1. Getting ready to push cylinder data.
+
 ## 5 July, 2023
-- Discussion of more complete data-submission conventions. h,p,t resolution indicators. README.json should be included for each submission describing h,p,t levels.
+- Discussion of more complete data-submission conventions. h,p,t resolution indicators. json description file should be included for each submission describing h,p,t levels.
 
 ## 7 June, 2023
 - Cancelled last minute due to connectivity issues.

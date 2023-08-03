@@ -42,7 +42,7 @@ The following Motion-Index convention should be used:
 - `Airfoil-M1` = 2024 Airfoil, Heaving
 - `Airfoil-M2` = 2024 Airfoil, Heaving + Pitching
 
-Groups should also submit a `README.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom in a spatial element across `p`-indices:
+Groups should also submit a `<motion>.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom per equation in a spatial element across `p`-indices. For example, a data submission for cylinder results should include a file `Cylinder.json` with example contents:
 ```
 {"h0":100, "h1":200, "h2":400, "p0":1, "p1":8, "p2":27}
 ```

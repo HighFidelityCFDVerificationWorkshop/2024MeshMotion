@@ -15,6 +15,8 @@ from matplotlib import rc, rcParams
 # Arguments
 parser = argparse.ArgumentParser(description='results parser for high-fidelity CFD verification workshop: mesh motion test suite')
 parser.add_argument("--save", action='store_true', default=False, help="Save time-histories to image files.")
+parser.add_argument("--groups", nargs="+", default=[])
+parser.add_argument("--motions", nargs="+", default=[])
 args = parser.parse_args()
 
 
@@ -28,50 +30,64 @@ rc('font', family='serif')
 rcParams.update({'figure.autolayout': True})
 
 
-M1 = plt.figure(figsize=(16,4))
-M1.set_facecolor('White')
-ax_M1_1 = M1.add_subplot(141)
-ax_M1_2 = M1.add_subplot(142)
-ax_M1_3 = M1.add_subplot(143)
-ax_M1_4 = M1.add_subplot(144)
 
-M2 = plt.figure(figsize=(16,4))
-M2.set_facecolor('White')
-ax_M2_1 = M2.add_subplot(141)
-ax_M2_2 = M2.add_subplot(142)
-ax_M2_3 = M2.add_subplot(143)
-ax_M2_4 = M2.add_subplot(144)
-
-
-
-
-motions = ['M1','M2','M3','M4']
 hs = ['h0','h1','h2','h3','h4','h5',]
 ps = ['p0','p1','p2','p3','p4','p5','p6']
 ts = ['t0','t1','t2','t3','t4','t5']
 
 
-groups = {'UM':{'color':'y--',
-                'config':{},
-                'integrals':{'Y-Force':{},
-                             'Work':{},
-                             'Mass':{},
-                             'Mass Error':{}
-                             }
-               },
-          'AFRL':{'color':'b--',
-                'config':{},
-                'integrals':{'Y-Force':{},
-                             'Work':{},
-                             'Mass':{},
-                             'Mass Error':{}
-                             }
-               }
-         }
-motions = ['M1','M2']
+# Initialize group dictionaries 
+group_dict = {'color':'k',
+              'config':{},    # 'config' is a placeholder that 'Cylinder.json' will be read into
+              'integrals':{'Y-Force':{},
+                           'Work':{},
+                           'Mass':{},
+                           'Mass Error':{}} }
+
+group_list = []
+if 'UM' in args.groups or 'all' in args.groups:
+    group_list.append('UM')
+if 'UCB' in args.groups or 'all' in args.groups:
+    group_list.append('UCB')
+if 'AFRL'  in args.groups or 'all' in args.groups:
+    group_list.append('AFRL')
 
 
+groups = {}
+for g in group_list:
+    groups[g] = group_dict.copy()
 
+
+# Specialize for plotting
+if 'UM' in args.groups or 'all' in args.groups:
+    groups['UM']['color'] = 'y--'
+if 'UCB' in args.groups or 'all' in args.groups:
+    groups['UCB']['color'] = 'r--'
+if 'AFRL'  in args.groups or 'all' in args.groups:
+    groups['AFRL']['color'] = 'b--'
+
+
+motions = []
+if 'M1' in args.motions or 'all' in args.motions:
+
+    motions.append('M1')
+
+    M1 = plt.figure(figsize=(16,4))
+    M1.set_facecolor('White')
+    ax_M1_1 = M1.add_subplot(141)
+    ax_M1_2 = M1.add_subplot(142)
+    ax_M1_3 = M1.add_subplot(143)
+    ax_M1_4 = M1.add_subplot(144)
+
+if 'M2' in args.motions or 'all' in args.motions:
+    motions.append('M2')
+
+    M2 = plt.figure(figsize=(16,4))
+    M2.set_facecolor('White')
+    ax_M2_1 = M2.add_subplot(141)
+    ax_M2_2 = M2.add_subplot(142)
+    ax_M2_3 = M2.add_subplot(143)
+    ax_M2_4 = M2.add_subplot(144)
 
 
 def load_participant_data(group,case,motion,h,p,t):
@@ -248,49 +264,54 @@ for group in groups:
             
 
 
-ax_M1_1.legend()
-ax_M1_2.legend()
-ax_M1_3.legend()
-ax_M1_4.legend()
+if 'M1' in motions:
+    ax_M1_1.legend()
+    ax_M1_2.legend()
+    ax_M1_3.legend()
+    ax_M1_4.legend()
+    
+    ax_M1_1.set_xlabel('Time')
+    ax_M1_2.set_xlabel('Time')
+    ax_M1_3.set_xlabel('Time')
+    ax_M1_4.set_xlabel('Time')
+    
+    ax_M1_1.set_ylabel('Force-Y')
+    ax_M1_2.set_ylabel('Work integrand')
+    ax_M1_3.set_ylabel('Mass')
+    ax_M1_4.set_ylabel('Mass error')
+    
+    ax_M1_1.set_xlim((0.,1.))
+    ax_M1_2.set_xlim((0.,1.))
+    ax_M1_3.set_xlim((0.,1.))
+    ax_M1_4.set_xlim((0.,1.))
+    
+    if args.save:
+        M1.savefig('Cylinder_M1_Histories.png', bbox_inches='tight', dpi=800)
 
-ax_M2_1.legend()
-ax_M2_2.legend()
-ax_M2_3.legend()
-ax_M2_4.legend()
 
-ax_M1_1.set_xlabel('Time')
-ax_M1_2.set_xlabel('Time')
-ax_M1_3.set_xlabel('Time')
-ax_M1_4.set_xlabel('Time')
-
-ax_M2_1.set_xlabel('Time')
-ax_M2_2.set_xlabel('Time')
-ax_M2_3.set_xlabel('Time')
-ax_M2_4.set_xlabel('Time')
-
-ax_M1_1.set_ylabel('Force-Y')
-ax_M1_2.set_ylabel('Work integrand')
-ax_M1_3.set_ylabel('Mass')
-ax_M1_4.set_ylabel('Mass error')
-
-ax_M2_1.set_ylabel('Force-Y')
-ax_M2_2.set_ylabel('Work integrand')
-ax_M2_3.set_ylabel('Mass')
-ax_M2_4.set_ylabel('Mass error')
-
-ax_M1_1.set_xlim((0.,1.))
-ax_M1_2.set_xlim((0.,1.))
-ax_M1_3.set_xlim((0.,1.))
-ax_M1_4.set_xlim((0.,1.))
- 
-ax_M2_1.set_xlim((0.,40.))
-ax_M2_2.set_xlim((0.,40.))
-ax_M2_3.set_xlim((0.,40.))
-ax_M2_4.set_xlim((0.,40.))
-
-if args.save:
-    M1.savefig('Cylinder_M1_Histories.png', bbox_inches='tight', dpi=800)
-    M2.savefig('Cylinder_M2_Histories.png', bbox_inches='tight', dpi=800)
+if 'M2' in motions:
+    ax_M2_1.legend()
+    ax_M2_2.legend()
+    ax_M2_3.legend()
+    ax_M2_4.legend()
+    
+    ax_M2_1.set_xlabel('Time')
+    ax_M2_2.set_xlabel('Time')
+    ax_M2_3.set_xlabel('Time')
+    ax_M2_4.set_xlabel('Time')
+    
+    ax_M2_1.set_ylabel('Force-Y')
+    ax_M2_2.set_ylabel('Work integrand')
+    ax_M2_3.set_ylabel('Mass')
+    ax_M2_4.set_ylabel('Mass error')
+    
+    ax_M2_1.set_xlim((0.,40.))
+    ax_M2_2.set_xlim((0.,40.))
+    ax_M2_3.set_xlim((0.,40.))
+    ax_M2_4.set_xlim((0.,40.))
+    
+    if args.save:
+        M2.savefig('Cylinder_M2_Histories.png', bbox_inches='tight', dpi=800)
 
 plt.show()
 

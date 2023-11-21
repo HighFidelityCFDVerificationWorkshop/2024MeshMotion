@@ -1,1 +1,1 @@
-{"h0":100, "h1":200, "h2":400, "h3":800, "p0":1, "p1":8, "p2":27, "p3":64, "p4":125, "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}
+{"h0":100, "h1":200, "h2":400, "h3":800, "p1":8, "p2":27, "p3":64, "p4":125, "t0":10, "t1":20, "t2":40, "t3":80, "reference":{"h":"h3","p":"p4","t":"t4"}, "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}

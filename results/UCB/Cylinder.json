@@ -1,1 +1,5 @@
-{"h0":100, "h1":200, "h2":400, "h3":800, "h4":1600, "h5":3200, "p1":8, "p2":27, "p3":64, "t0":10, "t1":20, "t2":40, "t3":80, "t4":160, "t5":320, "reference":{"h":"h5","p":"p3","t":"t6"}, "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}
+{"h0":100, "h1":200, "h2":400, "h3":800, "h4":1600, "h5":3200, 
+ "p1":8, "p2":27, "p3":64, 
+ "t0":10, "t1":20, "t2":40, "t3":80, "t4":160, "t5":320, 
+ "reference":{"h":"h5","p":"p3","t":"t6"}, 
+ "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}

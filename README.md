@@ -42,10 +42,11 @@ The following Motion-Index convention should be used:
 - `Airfoil-M1` = 2024 Airfoil, Heaving
 - `Airfoil-M2` = 2024 Airfoil, Heaving + Pitching
 
-Groups should also submit a `<motion>.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom per equation in a spatial element across `p`-indices. For example, a data submission for cylinder results should include a file `Cylinder.json` with example contents:
+Groups should also submit a `<motion>.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom per equation in a spatial element across `p`-indices. A reference dictionary prescribing `h`,`p`,`t` indices for a reference fine-space dataset should also be included. Meta-data for time integration scheme, temporal order and number of nonlinear solves per time-step may be included for completeness. For example, a data submission for cylinder results should include a file `Cylinder.json` with example contents:
 ```
-{"h0":100, "h1":200, "h2":400, "p0":1, "p1":8, "p2":27}
+{"h0":420, "h1":1680, "h2":6720, "h3":26880, "p1":8, "p2":27, "t0":10, "t1":20, "t2":40, "t3":80, "t4":160, "reference":{"h":"h3","p":"p1","t":"t4"}, "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}
 ```
+
 
 ## Data format
 For each contributed Case/Motion/Resolution, we are requesting time-series data for a set of outputs. Time-integrated quantities will be computed in data-processing by the organizers. Time-histories should include the time-history bounds (i.e. data at initial time t=0 and also data at final time t=1,2, or 40 depending on the test case). Time-histories should include the time-value for each time-instance as well as the requested outputs at each time-instance (Outputs are described in Eqns. 14-17 in the test suite document). Each contributed data-file (representative of a particular Case/Motion/Resolution) should be submitted in comma-separated-value format that consists of a single-line header and time-series data on subsequent lines. Optionally, time-integrated quantities may be submitted by participants by adding a data-entry at the end of the file with the time-value set to NaN. Data should be provided with at least 8-digits of precision. If a requested output is not able to be provided the entry should be filled with value NaN.
@@ -66,6 +67,24 @@ Time, Y-Force, Work integrand, Mass, Mass error
 1.0000000, 1.5400933, 3.4932846, 3.0940148, NaN
 NaN, 8.2345720, 25.29479238, 28.2984759, NaN
 ```
+
+## Post-processing
+A `resplot` post-processing script is included in the results directory for the repository. Query options as:
+
+```
+resplot -h
+```
+
+Example plotting results for only UM and UCB data-submissions:
+```
+resplot --motions M1 --groups UM UCB --plot
+```
+
+Example plotting results for all data-submissions:
+```
+resplot --motions M1 --groups all --plot
+```
+
 
 
 # Working group notes

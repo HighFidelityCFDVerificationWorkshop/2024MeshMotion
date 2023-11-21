@@ -53,7 +53,6 @@ if 'UCB' in args.groups or 'all' in args.groups:
 if 'AFRL'  in args.groups or 'all' in args.groups:
     group_list.append('AFRL')
 
-
 groups = {}
 for g in group_list:
     groups[g] = group_dict.copy()
@@ -126,7 +125,7 @@ def load_participant_data(group,case,motion,h,p,t):
 
 
 
-def process_data(data):
+def process_data(motion,data):
     """
     Take data that was read-in from a participant data file, process it, and 
     perform some rudimentary validation.
@@ -373,7 +372,7 @@ for group in groups:
 
                     # Plot time-histories
                     if isinstance(data, np.ndarray):
-                        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(data)
+                        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
                         integral = integrate.simps(y=y_force,x=time)
                         diff = integral - prev
                         print(diff,end="")
@@ -400,7 +399,7 @@ print(" ======================================================================")
 #   reference data set = "UCB/Cylinder-M1-h5-p3-t6.txt"
 data = load_participant_data('UM','Cylinder','M1',h='h3',p='p4',t='t4')
 #data = load_participant_data('UCB','Cylinder','M1',h='h5',p='p3',t='t6')
-time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(data)
+time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data('M1',data)
 ref_yforce        = integrate.simps(y=y_force,       x=time)
 ref_work          = integrate.simps(y=work_integrand,x=time)
 ref_mass          = integrate.simps(y=mass,          x=time)
@@ -452,7 +451,7 @@ for group in groups:
                     # Load max time-resolution data
                     data = load_participant_data(group,'Cylinder',motion,h=h,p=p,t=t)
                     if isinstance(data, np.ndarray):
-                        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(data)
+                        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
                         yforce_integral = integrate.simps(y=y_force,       x=time)
                         work_integral   = integrate.simps(y=work_integrand,x=time)
                         mass_integral   = integrate.simps(y=mass,          x=time)
@@ -523,7 +522,7 @@ for group in groups:
 
         # Plot time-histories
         if isinstance(data, np.ndarray):
-            time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(data)
+            time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
 
             if not skip: 
 

@@ -4,23 +4,13 @@ import numpy as np
 import scipy.integrate as integrate
 import scipy.fftpack   as fftpack
 import os.path
+import sys
 import json
 
 import matplotlib
 #matplotlib.use('pgf')
 import matplotlib.pyplot as plt
 from matplotlib import rc, rcParams
-
-
-# Arguments
-parser = argparse.ArgumentParser(description='results parser for high-fidelity CFD verification workshop: mesh motion test suite')
-parser.add_argument("--plot", action='store_true', default=False, help="Save time-histories to image files.")
-parser.add_argument("--save", action='store_true', default=False, help="Plot time-histories to image files.")
-parser.add_argument("--groups", nargs="+", default=[])
-parser.add_argument("--motions", nargs="+", default=[])
-args = parser.parse_args()
-
-
 
 # remove or set to True (default) to trigger exception
 rc_xelatex = {'pgf.rcfonts': False} 
@@ -29,80 +19,110 @@ matplotlib.rcParams.update(rc_xelatex)
 rc('text', usetex=True)
 rc('font', family='serif')
 rcParams.update({'figure.autolayout': True})
+    
+# Arguments
+parser = argparse.ArgumentParser(description='results parser for high-fidelity CFD verification workshop: mesh motion test suite')
+parser.add_argument("--plot", action='store_true', default=False, help="Save time-histories to image files.")
+parser.add_argument("--time-opacity", action='store_true', default=False, help="Plot time-convergence as opacity.")
+parser.add_argument("--save", action='store_true', default=False, help="Plot time-histories to image files.")
+parser.add_argument("--use-group-truth", action='store_true', default=False, help="Use groups own truth value (as opposed to a common across all data-sets.)")
+parser.add_argument("--geometries", nargs="+", default=[], help="Select geometry configuration(s) for post-processing")
+parser.add_argument("--groups", nargs="+", default=[])
+parser.add_argument("--motions", nargs="+", default=[])
+parser.add_argument("--porders", nargs="+", default=[])
+args = parser.parse_args()
 
 
-
-h_list = np.array(['h0','h1','h2','h3','h4','h5',])
+# Reference indices
+h_list = np.array(['hmm','hm','h0','h1','h2','h3','h4','h5'])
 p_list = np.array(['p0','p1','p2','p3','p4','p5','p6'])
 t_list = np.array(['t0','t1','t2','t3','t4','t5'])
 
 
-# Initialize group dictionaries 
-group_dict = {'color':'k',
-              'config':{},    # 'config' is a placeholder that 'Cylinder.json' will be read into
-              'integrals':{'Y-Force':{},
-                           'Work':{},
-                           'Mass':{},
-                           'Mass Error':{}} }
+def main():
 
-group_list = []
-if 'UM' in args.groups or 'all' in args.groups:
-    group_list.append('UM')
-if 'UCB' in args.groups or 'all' in args.groups:
-    group_list.append('UCB')
-if 'AFRL'  in args.groups or 'all' in args.groups:
-    group_list.append('AFRL')
+    print(" ")
+    print(" Data-processing for 2024 High-Fidelity CFD Verification Workshop: ")
+    print("     - 6-7 January, 2024")
+    print("     - Orlando, FL")
+    print("     - Mesh Motion Test suite")
+    print(" ----------------------------------------------------------------------")
+    print(" ")
+    
+    
+    # Assemble list of geometries to post-process
+    geometry_list = []
+    if 'Cylinder' in args.geometries or 'all' in args.geometries:
+        geometry_list.append('Cylinder')
+    if 'Airfoil' in args.geometries or 'all' in args.geometries:
+        geometry_list.append('Airfoil')
+    
 
-groups = {}
-for g in group_list:
-    groups[g] = group_dict.copy()
+    # Initialize group dictionaries 
+    group_dict = {'color':'k',
+                  'config':{},    # 'config' is a placeholder that 'Cylinder.json' will be read into
+                  'integrals':{'Y-Force':{},
+                               'Work':{},
+                               'Mass':{},
+                               'Mass Error':{}} }
+    group_list = []
+    if 'UM' in args.groups or 'all' in args.groups:
+        group_list.append('UM')
+    if 'UCB' in args.groups or 'all' in args.groups:
+        group_list.append('UCB')
+    if 'AFRL'  in args.groups or 'all' in args.groups:
+        group_list.append('AFRL')
+    groups = {}
+    for g in group_list:
+        groups[g] = group_dict.copy()
+    
+
+    # Specialize dictionaries for plotting
+    if 'UM' in args.groups or 'all' in args.groups:
+        groups['UM']['color'] = 'y'
+    if 'UCB' in args.groups or 'all' in args.groups:
+        groups['UCB']['color'] = 'r'
+    if 'AFRL'  in args.groups or 'all' in args.groups:
+        groups['AFRL']['color'] = 'b'
+    
+    # Assemble list of motions to post-process
+    motions = []
+    if 'M1' in args.motions or 'all' in args.motions:
+        motions.append('M1')
+    if 'M2' in args.motions or 'all' in args.motions:
+        motions.append('M2')
 
 
-# Specialize for plotting
-if 'UM' in args.groups or 'all' in args.groups:
-    groups['UM']['color'] = 'y--'
-if 'UCB' in args.groups or 'all' in args.groups:
-    groups['UCB']['color'] = 'r--'
-if 'AFRL'  in args.groups or 'all' in args.groups:
-    groups['AFRL']['color'] = 'b--'
 
 
-motions = []
-if 'M1' in args.motions or 'all' in args.motions:
+    # Plot time-histories
+    hist_figs = []
+    for geometry in geometry_list:
+        for motion in motions:
+            hist_figs.append(plot_time_history(geometry,motion,groups))
 
-    motions.append('M1')
+    
+    # Plot spatial convergence with temporal convergence as opacity
+    conv_figs = []
+    for geometry in geometry_list:
+        for motion in motions:
+            conv_figs.append(plot_convergence(geometry,motion,groups))
 
-    M1 = plt.figure(figsize=(16,4))
-    M1.set_facecolor('White')
-    ax_M1_1 = M1.add_subplot(141)
-    ax_M1_2 = M1.add_subplot(142)
-    ax_M1_3 = M1.add_subplot(143)
-    ax_M1_4 = M1.add_subplot(144)
+    if args.plot:
+        plt.show()
 
-    M1conv = plt.figure(figsize=(16,4))
-    M1conv.set_facecolor('White')
-    ax_M1conv_1 = M1conv.add_subplot(141)
-    ax_M1conv_2 = M1conv.add_subplot(142)
-    ax_M1conv_3 = M1conv.add_subplot(143)
-    ax_M1conv_4 = M1conv.add_subplot(144)
 
-if 'M2' in args.motions or 'all' in args.motions:
-    motions.append('M2')
 
-    M2 = plt.figure(figsize=(16,4))
-    M2.set_facecolor('White')
-    ax_M2_1 = M2.add_subplot(141)
-    ax_M2_2 = M2.add_subplot(142)
-    ax_M2_3 = M2.add_subplot(143)
-    ax_M2_4 = M2.add_subplot(144)
 
-    M2conv = plt.figure(figsize=(16,4))
-    M2conv.set_facecolor('White')
-    ax_M2conv_1 = M2conv.add_subplot(141)
-    ax_M2conv_2 = M2conv.add_subplot(142)
-    ax_M2conv_3 = M2conv.add_subplot(143)
-    ax_M2conv_4 = M2conv.add_subplot(144)
 
+
+
+
+
+
+########################################################
+# Helper functions
+########################################################
 
 def load_participant_data(group,case,motion,h,p,t):
     """
@@ -116,8 +136,9 @@ def load_participant_data(group,case,motion,h,p,t):
     if (os.path.isfile(file)):
         data = np.loadtxt(file, skiprows=1,delimiter=',',ndmin=2)
     else:
+        print(f"| {t} not found",end="")
         #print('Data not found: '+file,end="")
-        print('Data not found: '+file)
+        #print('Data not found: '+file)
         data = False
 
     return data
@@ -326,122 +347,164 @@ def get_case_tindices(group,geometry,motion,h,p):
 
 
 
-print(" ")
-print(" Data-processing for 2024 High-Fidelity CFD Verification Workshop: ")
-print("     - 6-7 January, 2024")
-print("     - Orlando, FL")
-print("     - Mesh Motion Test suite")
-print(" ----------------------------------------------------------------------")
-print(" ")
+
+def display_time_convergence(geometries,groups,motions):
+    """ Compute differences in quantities from one time-level to the next.
+
+    Differences in integrated quantities for varying time-resolution
+        - Computed as: (Current Time-Resolution) - (Previous Time-Resolution)
+        - First value in row is total integral for smallest time-resolution
+
+    """
+
+    for geometry in geometries:
+        for group in groups:
+            print(" ")
+            print(group)
+            print("....................................................................")
+            for motion in motions:
+        
+                # Read data-set configuration
+                f = open(f"{group}/{geometry}.json")
+                groups[group]['config'] = json.load(f)
+        
+                # Get resolutions
+                hmax = get_hmax(groups[group]['config'])
+                hmax_index = np.where(h_list==hmax)[0][0]
+        
+                pmax = get_pmax(groups[group]['config'])
+                pmax_index = np.where(p_list==pmax)[0][0]
+        
+                for h in h_list[0:hmax_index+1]:
+                    for p in p_list[0:pmax_index+1]:
+                        print(f"{h},{p}: ",end="")
+        
+                        tmax = get_tmax(group,geometry,motion)
+                        tmax_index = np.where(t_list==tmax)[0][0]
+                        prev = 0.
+                        for t in t_list[0:tmax_index+1]:
+        
+                            # Load max-resolution data
+                            data = load_participant_data(group,geometry,motion,h,p,t)
+        
+                            # Plot time-histories
+                            if isinstance(data, np.ndarray):
+                                time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
+                                if not skip:
+                                    integral = integrate.simps(y=y_force,x=time)
+                                    diff = integral - prev
+                                    print(diff,end="")
+                                    print(", ",end="")
+                                    prev = integral
+                                else:
+                                    print(" Incomplete ",end="")
+                            else:
+                                print(', ',end="")
+        
+                        print("")
 
 
-# Compute differences in quantities from one time-level to the next
-# Plot time-histories
-print(" Differences in integrated quantities for varying time-resolution")
-print("     - Computed as: (Current Time-Resolution) - (Previous Time-Resolution)")
-print("     - First value in row is total integral for smallest time-resolution")
-print(" ======================================================================")
-for group in groups:
-    print(" ")
-    print(group)
-    print("....................................................................")
-    for motion in motions:
 
+
+def plot_convergence(geometry,motion,groups):
+    """ Compute differences in quantities from one time-level against a reference 
+        space,time-resolved case. Plot spatial convergence. Plot time convergence as opacity variances.
+
+        Integrated quantities for varying time-resolution compared against reference h,t-resolved result
+        - Computed as: (Reference Time-Resolution) - (Current Time-Resolution)")
+    """
+    
+    # Create figure
+    #fig = plt.figure(figsize=(16,4))
+    fig = plt.figure(figsize=(18,4))
+    fig.set_facecolor('White')
+    axes = [fig.add_subplot(141), fig.add_subplot(142), fig.add_subplot(143), fig.add_subplot(144)]
+
+
+
+
+
+    for group in groups:
+    
         # Read data-set configuration
-        f = open(f"{group}/Cylinder.json")
+        f = open(f"{group}/{geometry}.json")
         groups[group]['config'] = json.load(f)
-
-        # Get resolutions
-        hmax = get_hmax(groups[group]['config'])
-        hmax_index = np.where(h_list==hmax)[0][0]
-
-        pmax = get_pmax(groups[group]['config'])
-        pmax_index = np.where(p_list==pmax)[0][0]
-
-        for h in h_list[0:hmax_index+1]:
-            for p in p_list[0:pmax_index+1]:
-                print(f"{h},{p}: ",end="")
-
-                tmax = get_tmax(group,'Cylinder',motion)
-                tmax_index = np.where(t_list==tmax)[0][0]
-                prev = 0.
-                for t in t_list[0:tmax_index+1]:
-
-                    # Load max-resolution data
-                    data = load_participant_data(group,'Cylinder',motion,h,p,t)
-
-                    # Plot time-histories
-                    if isinstance(data, np.ndarray):
-                        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
-                        integral = integrate.simps(y=y_force,x=time)
-                        diff = integral - prev
-                        print(diff,end="")
-                        print(", ",end="")
-                        prev = integral
-                    else:
-                        print(', ',end="")
-
-                print("")
+        color = groups[group]['color']
 
 
+        # Select + compute reference/truth quantities
+        if geometry == 'Cylinder':
+
+            # Compute integrated reference quantities
+            if args.use_group_truth:
+                
+                # Get groups own reference/truth data-set
+                ref_h = groups[group]['config']['reference']['h']
+                ref_p = groups[group]['config']['reference']['p']
+                ref_t = groups[group]['config']['reference']['t']
+
+                # Compute dof count
+                ndof_max = groups[group]['config'][ref_h] * groups[group]['config'][ref_p]
+
+                # Load max-resolution data
+                data = load_participant_data(group,geometry,motion,ref_h,ref_p,ref_t)
+
+                time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data('M1',data)
+                ref_yforce        = integrate.simps(y=y_force,       x=time)
+                ref_work          = integrate.simps(y=work_integrand,x=time)
+                ref_mass          = integrate.simps(y=mass,          x=time)
+                
+            else:
+                # Load max-resolution data
+                #data = load_participant_data('UM','Cylinder','M1',h='h3',p='p4',t='t4')
+                data = load_participant_data('UCB','Cylinder','M1',h='h5',p='p3',t='t6')
+                time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data('M1',data)
+                ref_yforce        = integrate.simps(y=y_force,       x=time)
+                ref_work          = integrate.simps(y=work_integrand,x=time)
+                ref_mass          = integrate.simps(y=mass,          x=time)
+                
+                # Compute analytical (exact) reference mass
+                volume  = np.pi*0.5*0.5
+                density = 1.
+                ref_mass = volume * density
 
 
-# Compute differences in quantities from one time-level against a reference 
-# space,time-resolved case. Plot spatial convergence
-print(" ")
-print(" Integrated quantities for varying time-resolution compared against reference h,t-resolved result")
-print("     - Computed as: (Reference Time-Resolution) - (Current Time-Resolution)")
-print(" ======================================================================")
 
-
-# Load max-resolution data
-#   reference data set = "UM/Cylinder-M1-h3-p4-t4.txt"
-#   reference data set = "UCB/Cylinder-M1-h5-p3-t6.txt"
-data = load_participant_data('UM','Cylinder','M1',h='h3',p='p4',t='t4')
-#data = load_participant_data('UCB','Cylinder','M1',h='h5',p='p3',t='t6')
-time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data('M1',data)
-ref_yforce        = integrate.simps(y=y_force,       x=time)
-ref_work          = integrate.simps(y=work_integrand,x=time)
-ref_mass          = integrate.simps(y=mass,          x=time)
-
-# Compute analytical (exact) reference mass
-volume  = np.pi*0.5*0.5
-density = 1.
-ref_mass_exact = volume * density
-
-
-for group in groups:
-    print(" ")
-    print(group)
-    print("....................................................................")
-    color = groups[group]['color']
-    for motion in motions:
-
-        # Read data-set configuration
-        f = open(f"{group}/Cylinder.json")
-        groups[group]['config'] = json.load(f)
+        elif geometry == 'Airfoil':
+            print("Airfoil reference data undefined")
+            sys.exit()
 
 
         # Get resolutions
         hs = get_config_hindices(groups[group]['config'])
-        ps = get_config_pindices(groups[group]['config'])
         ts = get_config_tindices(groups[group]['config'])
+        ps = get_config_pindices(groups[group]['config'])
 
-        error_yforce = np.zeros((len(hs),len(ps),len(ts)))
-        error_work   = np.zeros((len(hs),len(ps),len(ts)))
-        error_mass   = np.zeros((len(hs),len(ps),len(ts)))
-        ndof         = np.zeros((len(hs),len(ps)))
+        # Only use valid ps from prescribed porders if they are prescribed
+        ps_list = []
+        if len(args.porders) > 0 :
+            for p in ps:
+                if p in args.porders:
+                    ps_list.append(p)
+            ps = ps_list
+
+        error_yforce  = np.zeros((len(hs),len(ps),len(ts)))
+        error_yforce0 = np.zeros((len(hs),len(ps),len(ts)))
+        error_work    = np.zeros((len(hs),len(ps),len(ts)))
+        error_mass    = np.zeros((len(hs),len(ps),len(ts)))
+        ndof          = np.zeros((len(hs),len(ps)))
 
         # Populate with NaNs so not plotted if not filled with actual error data
-        error_yforce[:,:,:] = np.nan
-        error_work[:,:,:]   = np.nan
-        error_mass[:,:,:]   = np.nan
+        error_yforce[:,:,:]  = np.nan
+        error_work[:,:,:]    = np.nan
+        error_mass[:,:,:]    = np.nan
+        error_yforce0[:,:,:] = np.nan
 
         for hi,h in enumerate(hs):
             for pi,p in enumerate(ps):
 
                 # For a given h,p-index, are there multiple t-index results
-                case_ts = get_case_tindices(group,'Cylinder',motion,h,p)
+                case_ts = get_case_tindices(group,geometry,motion,h,p)
                 tmax, tmax_index = get_tmax_from_list(case_ts,t_list)
 
                 # Compute dof count
@@ -449,64 +512,81 @@ for group in groups:
 
                 for ti,t in enumerate(ts):
                     # Load max time-resolution data
-                    data = load_participant_data(group,'Cylinder',motion,h=h,p=p,t=t)
+                    data = load_participant_data(group,geometry,motion,h=h,p=p,t=t)
                     if isinstance(data, np.ndarray):
                         time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
-                        yforce_integral = integrate.simps(y=y_force,       x=time)
-                        work_integral   = integrate.simps(y=work_integrand,x=time)
-                        mass_integral   = integrate.simps(y=mass,          x=time)
+                        if not skip:
+                            yforce_integral = integrate.simps(y=y_force,       x=time)
+                            work_integral   = integrate.simps(y=work_integrand,x=time)
+                            mass_integral   = integrate.simps(y=mass,          x=time)
 
-                        error_yforce[hi,pi,ti] = ref_yforce     - yforce_integral
-                        error_work[hi,pi,ti]   = ref_work       - work_integral   
-                        error_mass[hi,pi,ti]   = ref_mass_exact - mass_integral
+                            error_yforce[hi,pi,ti]  = ref_yforce - yforce_integral
+                            error_work[hi,pi,ti]    = ref_work   - work_integral   
+                            error_mass[hi,pi,ti]    = ref_mass   - mass_integral
+                            error_yforce0[hi,pi,ti] = y_force[0]
 
         symbols = {'p1':'o','p2':'^','p3':'s','p4':'p'}
         for pi,p in enumerate(ps):
-
-            # Get appropriate symbol for p-order
             symbol = symbols[p]
+            axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
+            axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
+            axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
+            axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
+            if args.time_opacity:
+                itime_end = -2
+                alpha_plot = 0.9
+                while itime_end >= -len(ts):
+                    axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    itime_end -= 1
+                    alpha_plot -= 0.1
 
-            if motion == 'M1':
-                ax_M1conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-1]),symbol+color,label=f"{group}: {p}",linewidth=1.0)
-                ax_M1conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-1]),symbol+color,label=f"{group}: {p}",linewidth=1.0)
-                ax_M1conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-1]),symbol+color,label=f"{group}: {p}",linewidth=1.0)
-                ax_M1conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-2]),symbol+color,linewidth=1.0,alpha=0.5)
-                ax_M1conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-2]),symbol+color,linewidth=1.0,alpha=0.5)
-                ax_M1conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-2]),symbol+color,linewidth=1.0,alpha=0.5)
-                ax_M1conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-3]),symbol+color,linewidth=1.0,alpha=0.2)
-                ax_M1conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-3]),symbol+color,linewidth=1.0,alpha=0.2)
-                ax_M1conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-3]),symbol+color,linewidth=1.0,alpha=0.2)
-                ax_M1conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-4]),symbol+color,linewidth=1.0,alpha=0.1)
-                ax_M1conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-4]),symbol+color,linewidth=1.0,alpha=0.1)
-                ax_M1conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-4]),symbol+color,linewidth=1.0,alpha=0.1)
-            elif motion == 'M2':
-                ax_M2conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-1]),symbol+color,label=f"{group}: {p}",linewidth=1.0)
-                ax_M2conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-1]),symbol+color,label=f"{group}: {p}",linewidth=1.0)
-                ax_M2conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-1]),symbol+color,label=f"{group}: {p}",linewidth=1.0)
-                ax_M2conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-2]),symbol+color,linewidth=1.0,alpha=0.5)
-                ax_M2conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-2]),symbol+color,linewidth=1.0,alpha=0.5)
-                ax_M2conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-2]),symbol+color,linewidth=1.0,alpha=0.5)
-                ax_M2conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-3]),symbol+color,linewidth=1.0,alpha=0.2)
-                ax_M2conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-3]),symbol+color,linewidth=1.0,alpha=0.2)
-                ax_M2conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-3]),symbol+color,linewidth=1.0,alpha=0.2)
-                ax_M2conv_1.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[:,pi,-4]),symbol+color,linewidth=1.0,alpha=0.1)
-                ax_M2conv_2.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[  :,pi,-4]),symbol+color,linewidth=1.0,alpha=0.1)
-                ax_M2conv_3.loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[  :,pi,-4]),symbol+color,linewidth=1.0,alpha=0.1)
-    
+    axes[0].legend()
+    axes[1].legend()
+    axes[2].legend()
+    axes[3].legend()
+    axes[0].set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
+    axes[1].set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
+    axes[2].set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
+    axes[3].set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
+    axes[0].set_ylabel(r'$|\mathrm{YImpulse}_{\mathrm{ref}} -  \mathrm{YImpulse}|$')
+    axes[1].set_ylabel(r'$|\mathrm{Work}_{\mathrm{ref}} -  \mathrm{Work}|$')
+    axes[2].set_ylabel(r'$|\mathrm{Mass}_{\mathrm{ref}} -  \mathrm{Mass}|$')
+    axes[3].set_ylabel(r'$|\mathrm{YForce}_{t=0}|$')
+
+    axes[0].set_xlim((2.e-4,0.e-0))
+    axes[1].set_xlim((2.e-4,0.e-0))
+    axes[2].set_xlim((2.e-4,0.e-0))
+    axes[3].set_xlim((2.e-4,0.e-0))
 
 
 
+    if args.save:
+        fig.savefig(f'{geometry}_{motion}_Convergence.png', bbox_inches='tight', dpi=800)
 
-# Plot time-histories
-print(" ")
-print(" ")
-print(" Reference fine-space (h,p,t) integrated quantities")
-print(" ======================================================================")
-for group in groups:
-    for motion in motions:
+    return fig
+
+
+
+def plot_time_history(geometry,motion,groups):
+
+    # Create figure
+    fig = plt.figure(figsize=(16,4))
+    fig.set_facecolor('White')
+    axes = [fig.add_subplot(141), fig.add_subplot(142), fig.add_subplot(143), fig.add_subplot(144)]
+
+
+    # Plot time-histories
+    print(" ")
+    print(" ")
+    print(" Reference fine-space (h,p,t) integrated quantities")
+    print(" ======================================================================")
+    for group in groups:
 
         # Read data-set configuration
-        f = open(f"{group}/Cylinder.json")
+        f = open(f"{group}/{geometry}.json")
         groups[group]['config'] = json.load(f)
 
         # Get max resolution
@@ -518,14 +598,13 @@ for group in groups:
         ndof_max = groups[group]['config'][hmax] * groups[group]['config'][pmax]
 
         # Load max-resolution data
-        data = load_participant_data(group,'Cylinder',motion,hmax,pmax,tmax)
+        data = load_participant_data(group,geometry,motion,hmax,pmax,tmax)
 
         # Plot time-histories
         if isinstance(data, np.ndarray):
             time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
 
             if not skip: 
-
                 groups[group]['integrals']['Y-Force'] = integrate.simps(y=y_force,        x=time)
                 groups[group]['integrals']['Work']    = integrate.simps(y=work_integrand, x=time)
                 groups[group]['integrals']['Mass']    = integrate.simps(y=mass,           x=time)
@@ -538,102 +617,45 @@ for group in groups:
                 print('Mass',    groups[group]['integrals']['Mass'])
 
                 color = groups[group]['color']
-                if (motion == 'M1'):
-                    ax_M1_1.plot(time,y_force,        color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                    ax_M1_2.plot(time,work_integrand, color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                    ax_M1_3.plot(time,mass,           color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                    ax_M1_4.plot(time,mass_error,     color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                axes[0].plot(time,y_force,        color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                axes[1].plot(time,work_integrand, color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                axes[2].plot(time,mass,           color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                axes[3].plot(time,mass_error,     color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
 
-                elif (motion == 'M2'):
-                    ax_M2_1.plot(time,y_force,        color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                    ax_M2_2.plot(time,work_integrand, color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                    ax_M2_3.plot(time,mass,           color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                    ax_M2_4.plot(time,mass_error,     color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
         else:
             # End line
             print("")
 
 
+    axes[0].legend()
+    axes[1].legend()
+    axes[2].legend()
+    axes[3].legend()
+    
+    axes[0].set_xlabel('Time')
+    axes[1].set_xlabel('Time')
+    axes[2].set_xlabel('Time')
+    axes[3].set_xlabel('Time')
+    
+    axes[0].set_ylabel('Force-Y')
+    axes[1].set_ylabel('Work integrand')
+    axes[2].set_ylabel('Mass')
+    axes[3].set_ylabel('Mass error')
+    
+    axes[0].set_xlim((0.,1.))
+    axes[1].set_xlim((0.,1.))
+    axes[2].set_xlim((0.,1.))
+    axes[3].set_xlim((0.,1.))
+
+    if args.save:
+        fig.savefig(f'{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=800)
+
+    return fig
+
             
 
 
-print(" ")
-if args.plot:
-    print(" ")
-    print(" Plotting time-histories")
-    print(" ======================================================================")
-    print(" ...")
-    if 'M1' in motions:
-        ax_M1_1.legend()
-        ax_M1_2.legend()
-        ax_M1_3.legend()
-        ax_M1_4.legend()
-        ax_M1conv_1.legend()
-        ax_M1conv_2.legend()
-        ax_M1conv_3.legend()
-        ax_M1conv_4.legend()
-        
-        ax_M1_1.set_xlabel('Time')
-        ax_M1_2.set_xlabel('Time')
-        ax_M1_3.set_xlabel('Time')
-        ax_M1_4.set_xlabel('Time')
-        
-        ax_M1_1.set_ylabel('Force-Y')
-        ax_M1_2.set_ylabel('Work integrand')
-        ax_M1_3.set_ylabel('Mass')
-        ax_M1_4.set_ylabel('Mass error')
-        
-        ax_M1_1.set_xlim((0.,1.))
-        ax_M1_2.set_xlim((0.,1.))
-        ax_M1_3.set_xlim((0.,1.))
-        ax_M1_4.set_xlim((0.,1.))
 
 
-        ax_M1conv_1.set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
-        ax_M1conv_2.set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
-        ax_M1conv_3.set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
-        ax_M1conv_4.set_xlabel(r'$1/\sqrt{\mathrm{nDOF}}$')
-        
-        ax_M1conv_1.set_ylabel(r'$|\mathrm{YImpulse}_{\mathrm{ref}} -  \mathrm{YImpulse}|$')
-        ax_M1conv_2.set_ylabel(r'$|\mathrm{Work}_{\mathrm{ref}} -  \mathrm{Work}|$')
-        ax_M1conv_3.set_ylabel(r'$|\mathrm{Mass}_{\mathrm{ref}} -  \mathrm{Mass}|$')
-        
-        if args.save:
-            M1.savefig('Cylinder_M1_Histories.png', bbox_inches='tight', dpi=800)
-    
-    
-    if 'M2' in motions:
-        ax_M2_1.legend()
-        ax_M2_2.legend()
-        ax_M2_3.legend()
-        ax_M2_4.legend()
-
-        ax_M2conv_1.legend()
-        ax_M2conv_2.legend()
-        ax_M2conv_3.legend()
-        ax_M2conv_4.legend()
-        
-        ax_M2_1.set_xlabel('Time')
-        ax_M2_2.set_xlabel('Time')
-        ax_M2_3.set_xlabel('Time')
-        ax_M2_4.set_xlabel('Time')
-        
-        ax_M2_1.set_ylabel('Force-Y')
-        ax_M2_2.set_ylabel('Work integrand')
-        ax_M2_3.set_ylabel('Mass')
-        ax_M2_4.set_ylabel('Mass error')
-        
-        ax_M2_1.set_xlim((0.,40.))
-        ax_M2_2.set_xlim((0.,40.))
-        ax_M2_3.set_xlim((0.,40.))
-        ax_M2_4.set_xlim((0.,40.))
-
-        
-        if args.save:
-            M2.savefig('Cylinder_M2_Histories.png', bbox_inches='tight', dpi=800)
-    
-    plt.show()
-
-
-
-
+if __name__ == '__main__':
+    main()

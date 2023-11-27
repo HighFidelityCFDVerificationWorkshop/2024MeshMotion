@@ -72,6 +72,8 @@ def main():
         group_list.append('UCB')
     if 'AFRL'  in args.groups or 'all' in args.groups:
         group_list.append('AFRL')
+    if 'KU'  in args.groups or 'all' in args.groups:
+        group_list.append('KU')
     groups = {}
     for g in group_list:
         groups[g] = group_dict.copy()
@@ -84,6 +86,8 @@ def main():
         groups['UCB']['color'] = 'r'
     if 'AFRL'  in args.groups or 'all' in args.groups:
         groups['AFRL']['color'] = 'b'
+    if 'KU'  in args.groups or 'all' in args.groups:
+        groups['KU']['color'] = 'k'
     
     # Assemble list of motions to post-process
     motions = []
@@ -134,7 +138,18 @@ def load_participant_data(group,case,motion,h,p,t):
     # Load data
     file = f"{group}/{case}-{motion}-{h}-{p}-{t}.txt"
     if (os.path.isfile(file)):
-        data = np.loadtxt(file, skiprows=1,delimiter=',',ndmin=2)
+        data = -1
+        try:
+            data = np.loadtxt(file, skiprows=1,delimiter=',',ndmin=2)
+        except:
+            pass
+
+        if type(data) != "numpy.ndarray":
+            try:
+                data = np.loadtxt(file, skiprows=1,delimiter=" ",ndmin=2)
+            except:
+                pass
+
     else:
         print(f"| {t} not found",end="")
         #print('Data not found: '+file,end="")
@@ -179,7 +194,7 @@ def process_data(motion,data):
 
     # Validate start time
     skip=False
-    if not np.isclose(time[0],0.):
+    if not np.isclose(time[0],0.,atol=1e-04):
         print(f"Start-time for data-set is not 0. Skipping...")
         skip=True
 

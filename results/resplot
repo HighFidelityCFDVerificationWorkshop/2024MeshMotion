@@ -25,6 +25,7 @@ parser = argparse.ArgumentParser(description='results parser for high-fidelity C
 parser.add_argument("--plot", action='store_true', default=False, help="Save time-histories to image files.")
 parser.add_argument("--time-opacity", action='store_true', default=False, help="Plot time-convergence as opacity.")
 parser.add_argument("--save", action='store_true', default=False, help="Plot time-histories to image files.")
+parser.add_argument("--slopes", action='store_true', default=False, help="Plot reference convergence slopes.")
 parser.add_argument("--use-group-truth", action='store_true', default=False, help="Use groups own truth value (as opposed to a common across all data-sets.)")
 parser.add_argument("--geometries", nargs="+", default=[], help="Select geometry configuration(s) for post-processing")
 parser.add_argument("--groups", nargs="+", default=[])
@@ -74,6 +75,8 @@ def main():
         group_list.append('AFRL')
     if 'KU'  in args.groups or 'all' in args.groups:
         group_list.append('KU')
+    #if 'MIT'  in args.groups or 'all' in args.groups:
+    #    group_list.append('MIT')
     groups = {}
     for g in group_list:
         groups[g] = group_dict.copy()
@@ -87,8 +90,11 @@ def main():
     if 'AFRL'  in args.groups or 'all' in args.groups:
         groups['AFRL']['color'] = 'b'
     if 'KU'  in args.groups or 'all' in args.groups:
-        groups['KU']['color'] = 'k'
+        groups['KU']['color'] = 'g'
+    #if 'MIT'  in args.groups or 'all' in args.groups:
+    #    groups['MIT']['color'] = 'k'
     
+
     # Assemble list of motions to post-process
     motions = []
     if 'M1' in args.motions or 'all' in args.motions:
@@ -96,8 +102,12 @@ def main():
     if 'M2' in args.motions or 'all' in args.motions:
         motions.append('M2')
 
-
-
+    
+    # Plot spatial convergence with temporal convergence as opacity
+    conv_figs = []
+    for geometry in geometry_list:
+        for motion in motions:
+            conv_figs.append(plot_convergence(geometry,motion,groups))
 
     # Plot time-histories
     hist_figs = []
@@ -105,12 +115,6 @@ def main():
         for motion in motions:
             hist_figs.append(plot_time_history(geometry,motion,groups))
 
-    
-    # Plot spatial convergence with temporal convergence as opacity
-    conv_figs = []
-    for geometry in geometry_list:
-        for motion in motions:
-            conv_figs.append(plot_convergence(geometry,motion,groups))
 
     if args.plot:
         plt.show()
@@ -151,6 +155,7 @@ def load_participant_data(group,case,motion,h,p,t):
                 pass
 
     else:
+        #print(f"| {t} not found",end="")
         print(f"| {t} not found",end="")
         #print('Data not found: '+file,end="")
         #print('Data not found: '+file)
@@ -194,6 +199,20 @@ def process_data(motion,data):
 
     # Validate start time
     skip=False
+    if not np.isclose(time[0],0.,atol=1e-04):
+        print(f"Start-time for data-set is not 0. Skipping...")
+        skip=True
+
+    # Validate consistent time-step
+    for itime in range(len(time)-2):
+        dt      = time[itime+1]-time[itime+0]
+        dt_next = time[itime+2]-time[itime+1]
+        if not np.isclose(dt,dt_next):
+            print(f"Inconsistent time-step detected in data at t={time[itime], dt, dt_next}. Skipping...")
+            skip=True
+            break
+
+
     if not np.isclose(time[0],0.,atol=1e-04):
         print(f"Start-time for data-set is not 0. Skipping...")
         skip=True
@@ -440,6 +459,7 @@ def plot_convergence(geometry,motion,groups):
 
 
     for group in groups:
+        print(f"Processing convergence data for group: {group}...")
     
         # Read data-set configuration
         f = open(f"{group}/{geometry}.json")
@@ -473,6 +493,7 @@ def plot_convergence(geometry,motion,groups):
                 # Load max-resolution data
                 #data = load_participant_data('UM','Cylinder','M1',h='h3',p='p4',t='t4')
                 data = load_participant_data('UCB','Cylinder','M1',h='h5',p='p3',t='t6')
+                #data = load_participant_data('KU','Cylinder','M1',h='h3',p='p4',t='t2')
                 time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data('M1',data)
                 ref_yforce        = integrate.simps(y=y_force,       x=time)
                 ref_work          = integrate.simps(y=work_integrand,x=time)
@@ -511,12 +532,13 @@ def plot_convergence(geometry,motion,groups):
 
         # Populate with NaNs so not plotted if not filled with actual error data
         error_yforce[:,:,:]  = np.nan
+        error_yforce0[:,:,:] = np.nan
         error_work[:,:,:]    = np.nan
         error_mass[:,:,:]    = np.nan
-        error_yforce0[:,:,:] = np.nan
 
         for hi,h in enumerate(hs):
             for pi,p in enumerate(ps):
+                print(f"{h},{p}:",end="")
 
                 # For a given h,p-index, are there multiple t-index results
                 case_ts = get_case_tindices(group,geometry,motion,h,p)
@@ -526,19 +548,34 @@ def plot_convergence(geometry,motion,groups):
                 ndof[hi,pi] = groups[group]['config'][h] * groups[group]['config'][p]
 
                 for ti,t in enumerate(ts):
+                    print(f" {t} ",end="")
                     # Load max time-resolution data
                     data = load_participant_data(group,geometry,motion,h=h,p=p,t=t)
                     if isinstance(data, np.ndarray):
                         time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
+                        if h=='h1' and p=='p2':
+                            print(t,skip)
                         if not skip:
                             yforce_integral = integrate.simps(y=y_force,       x=time)
                             work_integral   = integrate.simps(y=work_integrand,x=time)
-                            mass_integral   = integrate.simps(y=mass,          x=time)
+                            error_yforce[hi,pi,ti]  = np.abs(ref_yforce - yforce_integral)
+                            error_work[hi,pi,ti]    = np.abs(ref_work   - work_integral)
+                            error_yforce0[hi,pi,ti] = np.abs(y_force[0])
 
-                            error_yforce[hi,pi,ti]  = ref_yforce - yforce_integral
-                            error_work[hi,pi,ti]    = ref_work   - work_integral   
-                            error_mass[hi,pi,ti]    = ref_mass   - mass_integral
-                            error_yforce0[hi,pi,ti] = y_force[0]
+                            mass_integral         = integrate.simps(y=mass,x=time)
+                            error_mass[hi,pi,ti]  = np.abs(ref_mass   - mass_integral)
+
+                            ## Compute mass error in L2
+                            #error_mass_time = (ref_mass - mass[:])**2.
+                            #mass_integral   = integrate.simps(y=error_mass_time,x=time)
+                            #error_mass[hi,pi,ti] = np.sqrt(mass_integral)
+                print("")
+
+        print(error_mass)
+
+        symbols = {'p1':'o','p2':'^','p3':'s','p4':'p'}
+        for pi,p in enumerate(ps):
+                print("")
 
         symbols = {'p1':'o','p2':'^','p3':'s','p4':'p'}
         for pi,p in enumerate(ps):
@@ -556,7 +593,60 @@ def plot_convergence(geometry,motion,groups):
                     axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
                     axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
                     itime_end -= 1
-                    alpha_plot -= 0.1
+                    alpha_plot -= 0.15
+
+        if args.slopes:
+            for axis in axes:
+                left_ref = 5.e-4
+                right_ref = 1.e-1
+
+                # Plot reference lines for orders 2,4,6,8
+                axis.loglog([right_ref,left_ref],[right_ref,left_ref*1.e-1],'k',linewidth=2.0)
+                axis.loglog([right_ref,left_ref],[right_ref,left_ref*1.e-3],'k',linewidth=2.0)
+                axis.loglog([right_ref,left_ref],[right_ref,left_ref*1.e-5],'k',linewidth=2.0)
+                axis.loglog([right_ref,left_ref],[right_ref,left_ref*1.e-7],'k',linewidth=2.0)
+
+                # Plot triangles
+                scale = 2.0
+                axis.loglog([left_ref,left_ref    ],[left_ref*1.e-0,     left_ref*1.e-0*2.0],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref*2.0],[left_ref*1.e-0*2.0, left_ref*1.e-0*2.0],'k',linewidth=2.0)
+
+                axis.loglog([left_ref,left_ref    ],[left_ref*1.e-2,     left_ref*1.e-2*4.0],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref*2.0],[left_ref*1.e-2*4.0, left_ref*1.e-2*4.0],'k',linewidth=2.0)
+
+                axis.loglog([left_ref,left_ref    ],[left_ref*1.e-4,     left_ref*1.e-4*8.0],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref*2.0],[left_ref*1.e-4*8.0, left_ref*1.e-4*8.0],'k',linewidth=2.0)
+
+                axis.loglog([left_ref,left_ref    ],[left_ref*1.e-6,     left_ref*1.e-6*16.0],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref*2.0],[left_ref*1.e-6*16.0,left_ref*1.e-6*16.0],'k',linewidth=2.0)
+
+                
+                diff = left_ref*1.e-1 * (scale * 1 - 1)
+                axis.loglog([left_ref,left_ref         ],[left_ref*1.e-1,       left_ref*1.e-1*scale],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref+2.0*diff],[left_ref*1.e-1*scale, left_ref*1.e-1*scale],'k',linewidth=2.0)
+
+                diff = left_ref*1.e-2 * (scale * 1 - 1)
+                axis.loglog([left_ref,left_ref         ],[left_ref*1.e-3,         left_ref*1.e-3*scale*2],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref*2.0*diff],[left_ref*1.e-3*scale*2, left_ref*1.e-3*scale*2],'k',linewidth=2.0)
+
+                diff = left_ref*1.e-4 * (scale * 1 - 1)
+                axis.loglog([left_ref,left_ref         ],[left_ref*1.e-5,         left_ref*1.e-5*scale*4],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref*3.0*diff],[left_ref*1.e-5*scale*4, left_ref*1.e-5*scale*4],'k',linewidth=2.0)
+
+                diff = left_ref*1.e-6 * (scale * 1 - 1)
+                axis.loglog([left_ref,left_ref         ],[left_ref*1.e-7,         left_ref*1.e-7*scale*8],'k',linewidth=2.0)
+                axis.loglog([left_ref,left_ref*4.0*diff],[left_ref*1.e-7*scale*8, left_ref*1.e-7*scale*8],'k',linewidth=2.0)
+
+
+                # Plot text
+                axis.text(5.e-4, 3.e-4, '1', weight='extra bold')
+                axis.text(5.e-4, 3.e-6, '3', weight='extra bold')
+                axis.text(5.e-4, 3.e-8, '5', weight='extra bold')
+                axis.text(5.e-4, 3.e-10,'7', weight='extra bold')
+
+
+
+
 
     axes[0].legend()
     axes[1].legend()
@@ -571,11 +661,15 @@ def plot_convergence(geometry,motion,groups):
     axes[2].set_ylabel(r'$|\mathrm{Mass}_{\mathrm{ref}} -  \mathrm{Mass}|$')
     axes[3].set_ylabel(r'$|\mathrm{YForce}_{t=0}|$')
 
-    axes[0].set_xlim((2.e-4,0.e-0))
-    axes[1].set_xlim((2.e-4,0.e-0))
-    axes[2].set_xlim((2.e-4,0.e-0))
-    axes[3].set_xlim((2.e-4,0.e-0))
+    axes[0].set_xlim((2.e-5,0.e-0))
+    axes[1].set_xlim((2.e-5,0.e-0))
+    axes[2].set_xlim((2.e-5,0.e-0))
+    axes[3].set_xlim((2.e-5,0.e-0))
 
+    axes[0].set_ylim((1.e-10,5.e-1))
+    axes[1].set_ylim((1.e-10,5.e-1))
+    axes[2].set_ylim((1.e-10,5.e-1))
+    axes[3].set_ylim((1.e-10,5.e-1))
 
 
     if args.save:

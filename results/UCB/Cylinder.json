@@ -1,0 +1,5 @@
+{"h0":28, "h1":96, "h2":352, "h3":1344, "h4":5248, "h5":20736, 
+ "p1":8, "p2":27, "p3":64, 
+ "t0":64, "t1":128, "t2":256, "t3":512, "t4":1024, "t5":2048, 
+ "reference":{"h":"h5","p":"p3","t":"t6"}, 
+ "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}

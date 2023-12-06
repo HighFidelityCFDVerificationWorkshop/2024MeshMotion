@@ -2,4 +2,4 @@
  "p1":8, "p2":27, "p3":64, "p4":125, 
  "t0":64, "t1":128, "t2":256, "t3":512,
  "reference":{"h":"h3","p":"p4","t":"t4"}, 
- "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}
+ "TimeIntegrator":"ESDIRK5","TimeOrder":5,"NonlinearSolvesPerTimeStep":6}

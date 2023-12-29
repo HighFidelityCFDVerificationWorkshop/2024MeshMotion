@@ -24,6 +24,7 @@ rcParams.update({'figure.autolayout': True})
 parser = argparse.ArgumentParser(description='results parser for high-fidelity CFD verification workshop: mesh motion test suite')
 parser.add_argument("--plot", action='store_true', default=False, help="Save time-histories to image files.")
 parser.add_argument("--time-opacity", action='store_true', default=False, help="Plot time-convergence as opacity.")
+parser.add_argument("--enforce-uniform-time", action='store_true', default=False, help="Enforce time-sampling must be uniform")
 parser.add_argument("--save", action='store_true', default=False, help="Plot time-histories to image files.")
 parser.add_argument("--slopes", action='store_true', default=False, help="Plot reference convergence slopes.")
 parser.add_argument("--use-group-truth", action='store_true', default=False, help="Use groups own truth value (as opposed to a common across all data-sets.)")
@@ -77,6 +78,8 @@ def main():
         group_list.append('AFRL')
     if 'KU'  in args.groups or 'all' in args.groups:
         group_list.append('KU')
+    if 'HKUST'  in args.groups or 'all' in args.groups:
+        group_list.append('HKUST')
     #if 'MIT'  in args.groups or 'all' in args.groups:
     #    group_list.append('MIT')
     groups = {}
@@ -93,6 +96,8 @@ def main():
         groups['AFRL']['color'] = 'b'
     if 'KU'  in args.groups or 'all' in args.groups:
         groups['KU']['color'] = 'g'
+    if 'HKUST'  in args.groups or 'all' in args.groups:
+        groups['HKUST']['color'] = 'k'
     #if 'MIT'  in args.groups or 'all' in args.groups:
     #    groups['MIT']['color'] = 'k'
     
@@ -109,7 +114,6 @@ def main():
     conv_figs = []
     group_ref = {}
     for geometry in geometry_list:
-
 
         group_ref = {}
         if args.use_group_truth:
@@ -161,11 +165,20 @@ def load_participant_data(group,case,motion,h,p,t):
         except:
             pass
 
-        if type(data) != "numpy.ndarray":
+        if not isinstance(data,np.ndarray):
             try:
                 data = np.loadtxt(file, skiprows=1,delimiter=" ",ndmin=2)
             except:
                 pass
+
+        if not isinstance(data,np.ndarray):
+            try:
+                data = np.loadtxt(file, skiprows=1,ndmin=2)
+            except:
+                pass
+
+        if isinstance(data,int):
+            print(f"Reading data from {file} unsuccessful.")
 
     else:
         #print(f"| {t} not found",end="")
@@ -219,18 +232,20 @@ def process_data(geometry,motion,data):
         skip=True
 
     # Validate consistent time-step
-    for itime in range(len(time)-2):
-        dt      = time[itime+1]-time[itime+0]
-        dt_next = time[itime+2]-time[itime+1]
-        if not np.isclose(dt,dt_next):
-            print(f"Inconsistent time-step detected in data at t={time[itime], dt, dt_next}. Skipping...")
-            skip=True
-            break
+    if args.enforce_uniform_time:
+        for itime in range(len(time)-2):
+            dt      = time[itime+1]-time[itime+0]
+            dt_next = time[itime+2]-time[itime+1]
+            if not np.isclose(dt,dt_next):
+                print(f"Inconsistent time-step detected in data at t={time[itime], dt, dt_next}. Skipping...")
+                skip=True
+                break
 
 
     if not np.isclose(time[0],0.,atol=1e-04):
         print(f"Start-time for data-set is not 0. Skipping...")
         skip=True
+
 
     if geometry == 'Airfoil':
         # Validate stop time
@@ -715,13 +730,13 @@ def plot_time_history(geometry,motion,groups):
 
 
         # Check if group includes {geometry.json}. If not, skip
-        print(group)
         if os.path.exists(f"{group}/{geometry}.json"):
             # Read in config file up-front
             f = open(f"{group}/{geometry}.json")
             groups[group]['config'] = json.load(f)
             color = groups[group]['color']
         else:
+            print(f"{group}/{geometry}.json does not exist.")
             continue
 
 
@@ -729,6 +744,10 @@ def plot_time_history(geometry,motion,groups):
         hmax = groups[group]['config']['reference']['h']
         pmax = groups[group]['config']['reference']['p']
         tmax = groups[group]['config']['reference']['t']
+
+        print(" ")
+        print(f"{group}: {hmax},{pmax},{tmax})")
+        print("....................................................................")
 
         # Load max-resolution data
         data = load_participant_data(group,geometry,motion,hmax,pmax,tmax)
@@ -743,9 +762,6 @@ def plot_time_history(geometry,motion,groups):
                 if geometry == 'Cylinder':
                     groups[group]['integrals']['Mass']    = integrate.simps(y=mass,           x=time)
 
-                print(" ")
-                print(f"{group}: {hmax},{pmax},{tmax})")
-                print("....................................................................")
                 print('Y-Force', groups[group]['integrals']['Y-Force'])
                 print('Work',    groups[group]['integrals']['Work'])
                 if geometry == 'Cylinder':

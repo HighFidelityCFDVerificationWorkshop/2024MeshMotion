@@ -661,10 +661,10 @@ def plot_convergence(geometry,motion,groups):
     axes[2].set_ylabel(r'$|\mathrm{Mass}_{\mathrm{ref}} -  \mathrm{Mass}|$')
     axes[3].set_ylabel(r'$|\mathrm{YForce}_{t=0}|$')
 
-    axes[0].set_xlim((2.e-5,0.e-0))
-    axes[1].set_xlim((2.e-5,0.e-0))
-    axes[2].set_xlim((2.e-5,0.e-0))
-    axes[3].set_xlim((2.e-5,0.e-0))
+    axes[0].set_xlim((2.e-5,2.e-1))
+    axes[1].set_xlim((2.e-5,2.e-1))
+    axes[2].set_xlim((2.e-5,2.e-1))
+    axes[3].set_xlim((2.e-5,2.e-1))
 
     axes[0].set_ylim((1.e-10,5.e-1))
     axes[1].set_ylim((1.e-10,5.e-1))

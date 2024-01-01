@@ -33,7 +33,7 @@ parser.add_argument("--groups", nargs="+", default=[])
 parser.add_argument("--motions", nargs="+", default=[])
 parser.add_argument("--porders", nargs="+", default=[])
 parser.add_argument("--cylinder-ref",  default={"M1":'UCB',"M2":'HKUST'}, help="Reference group data set for truth-value in cylinder convergence studies.")
-parser.add_argument("--airfoil-ref",  default={"M1":'UCB',"M2":'UCB'}, help="Reference group data set for truth-value in airfoil convergence studies.")
+parser.add_argument("--airfoil-ref",  default={"C1":'UCB',"C2":'UCB',"C3":'UCB',"C4":'UCB'}, help="Reference group data set for truth-value in airfoil convergence studies.")
 args = parser.parse_args()
 
 
@@ -109,6 +109,16 @@ def main():
     if 'M2' in args.motions or 'all' in args.motions:
         motions.append('M2')
 
+    # Assemble list of motions to post-process
+    motions = []
+    if 'C1' in args.motions or 'all' in args.motions:
+        motions.append('C1')
+    if 'C2' in args.motions or 'all' in args.motions:
+        motions.append('C2')
+    if 'C3' in args.motions or 'all' in args.motions:
+        motions.append('C3')
+    if 'C4' in args.motions or 'all' in args.motions:
+        motions.append('C4')
     
     # Plot spatial convergence with temporal convergence as opacity
     conv_figs = []

@@ -39,8 +39,10 @@ AFRL/Airfoil-M1-h0-p0-t0.txt
 The following Motion-Index convention should be used:
 - `Cylinder-M1` = 2024 Cylinder, Short-Motion
 - `Cylinder-M2` = 2024 Cylinder, Long-Motion
-- `Airfoil-M1` = 2024 Airfoil, Heaving
-- `Airfoil-M2` = 2024 Airfoil, Heaving + Pitching
+- `Airfoil-C1` = 2024 Airfoil, Mach .2, Motion 1 - Heaving
+- `Airfoil-C2` = 2024 Airfoil, Mach .2, Motion 2 - Heaving + Pitching
+- `Airfoil-C3` = 2024 Airfoil, Mach .01, Motion 1 - Heaving
+- `Airfoil-C4` = 2024 Airfoil, Mach .01, Motion 2 - Heaving + Pitching
 
 Groups should also submit a `<motion>.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom per equation in a spatial element across `p`-indices. A reference dictionary prescribing `h`,`p`,`t` indices for a reference fine-space dataset should also be included. Meta-data for time integration scheme, temporal order and number of nonlinear solves per time-step may be included for completeness. For example, a data submission for cylinder results should include a file `Cylinder.json` with example contents:
 ```

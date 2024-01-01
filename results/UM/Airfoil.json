@@ -1,5 +1,5 @@
 {"h0":520, "h1":1963, "h2":7781, "h3":15882, 
  "p1":3, "p2":6, "p3":10, "p4":15, 
  "t0":8, "t1":16, "t2":32, "t3":64,
- "reference":{"h":"h3","p":"p4","t":"t4"}, 
+ "reference":{"h":"h3","p":"p3","t":"t3"}, 
  "TimeIntegrator":"ESDIRK5","TimeOrder":5,"NonlinearSolvesPerTimeStep":6}

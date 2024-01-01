@@ -24,6 +24,7 @@ rcParams.update({'figure.autolayout': True})
 parser = argparse.ArgumentParser(description='results parser for high-fidelity CFD verification workshop: mesh motion test suite')
 parser.add_argument("--plot", action='store_true', default=False, help="Save time-histories to image files.")
 parser.add_argument("--time-opacity", action='store_true', default=False, help="Plot time-convergence as opacity.")
+parser.add_argument("--enforce-uniform-time", action='store_true', default=False, help="Enforce time-sampling must be uniform")
 parser.add_argument("--save", action='store_true', default=False, help="Plot time-histories to image files.")
 parser.add_argument("--slopes", action='store_true', default=False, help="Plot reference convergence slopes.")
 parser.add_argument("--use-group-truth", action='store_true', default=False, help="Use groups own truth value (as opposed to a common across all data-sets.)")
@@ -31,6 +32,8 @@ parser.add_argument("--geometries", nargs="+", default=[], help="Select geometry
 parser.add_argument("--groups", nargs="+", default=[])
 parser.add_argument("--motions", nargs="+", default=[])
 parser.add_argument("--porders", nargs="+", default=[])
+parser.add_argument("--cylinder-ref",  default={"M1":'UCB',"M2":'HKUST'}, help="Reference group data set for truth-value in cylinder convergence studies.")
+parser.add_argument("--airfoil-ref",  default={"M1":'UCB',"M2":'UCB'}, help="Reference group data set for truth-value in airfoil convergence studies.")
 args = parser.parse_args()
 
 
@@ -39,6 +42,13 @@ h_list = np.array(['hmm','hm','h0','h1','h2','h3','h4','h5'])
 p_list = np.array(['p0','p1','p2','p3','p4','p5','p6'])
 t_list = np.array(['t0','t1','t2','t3','t4','t5'])
 
+# Initialize group dictionaries 
+group_dict = {'color':'k',
+              'config':{},    # 'config' is a placeholder that 'Cylinder.json' will be read into
+              'integrals':{'Y-Force':{},
+                           'Work':{},
+                           'Mass':{},
+                           'Mass Error':{}} }
 
 def main():
 
@@ -59,13 +69,6 @@ def main():
         geometry_list.append('Airfoil')
     
 
-    # Initialize group dictionaries 
-    group_dict = {'color':'k',
-                  'config':{},    # 'config' is a placeholder that 'Cylinder.json' will be read into
-                  'integrals':{'Y-Force':{},
-                               'Work':{},
-                               'Mass':{},
-                               'Mass Error':{}} }
     group_list = []
     if 'UM' in args.groups or 'all' in args.groups:
         group_list.append('UM')
@@ -75,6 +78,8 @@ def main():
         group_list.append('AFRL')
     if 'KU'  in args.groups or 'all' in args.groups:
         group_list.append('KU')
+    if 'HKUST'  in args.groups or 'all' in args.groups:
+        group_list.append('HKUST')
     #if 'MIT'  in args.groups or 'all' in args.groups:
     #    group_list.append('MIT')
     groups = {}
@@ -91,6 +96,8 @@ def main():
         groups['AFRL']['color'] = 'b'
     if 'KU'  in args.groups or 'all' in args.groups:
         groups['KU']['color'] = 'g'
+    if 'HKUST'  in args.groups or 'all' in args.groups:
+        groups['HKUST']['color'] = 'k'
     #if 'MIT'  in args.groups or 'all' in args.groups:
     #    groups['MIT']['color'] = 'k'
     
@@ -105,9 +112,19 @@ def main():
     
     # Plot spatial convergence with temporal convergence as opacity
     conv_figs = []
+    group_ref = {}
     for geometry in geometry_list:
+
+        group_ref = {}
+        if args.use_group_truth:
+            group_ref['Cylinder'] = None
+            group_ref['Airfoil'] = None
+        else:
+            group_ref['Cylinder'] = args.cylinder_ref
+            group_ref['Airfoil'] = args.airfoil_ref
+
         for motion in motions:
-            conv_figs.append(plot_convergence(geometry,motion,groups))
+            conv_figs.append(plot_convergence(geometry,motion,groups,group_ref))
 
     # Plot time-histories
     hist_figs = []
@@ -148,11 +165,20 @@ def load_participant_data(group,case,motion,h,p,t):
         except:
             pass
 
-        if type(data) != "numpy.ndarray":
+        if not isinstance(data,np.ndarray):
             try:
                 data = np.loadtxt(file, skiprows=1,delimiter=" ",ndmin=2)
             except:
                 pass
+
+        if not isinstance(data,np.ndarray):
+            try:
+                data = np.loadtxt(file, skiprows=1,ndmin=2)
+            except:
+                pass
+
+        if isinstance(data,int):
+            print(f"Reading data from {file} unsuccessful.")
 
     else:
         #print(f"| {t} not found",end="")
@@ -166,7 +192,7 @@ def load_participant_data(group,case,motion,h,p,t):
 
 
 
-def process_data(motion,data):
+def process_data(geometry,motion,data):
     """
     Take data that was read-in from a participant data file, process it, and 
     perform some rudimentary validation.
@@ -183,8 +209,9 @@ def process_data(motion,data):
         participant_integrals = {}
         participant_integrals['Y-Force']    = data[-1,1]
         participant_integrals['Work']       = data[-1,2]
-        participant_integrals['Mass']       = data[-1,3]
-        participant_integrals['Mass error'] = data[-1,4]
+        if geometry == 'Cylinder':
+            participant_integrals['Mass']       = data[-1,3]
+            participant_integrals['Mass error'] = data[-1,4]
         data = np.delete(data,-1,0)
 
 
@@ -193,8 +220,9 @@ def process_data(motion,data):
     time           = data[:,0]
     y_force        = data[:,1]
     work_integrand = data[:,2]
-    mass           = data[:,3]
-    mass_error     = data[:,4]
+    if geometry == 'Cylinder':
+        mass           = data[:,3]
+        mass_error     = data[:,4]
 
 
     # Validate start time
@@ -204,28 +232,41 @@ def process_data(motion,data):
         skip=True
 
     # Validate consistent time-step
-    for itime in range(len(time)-2):
-        dt      = time[itime+1]-time[itime+0]
-        dt_next = time[itime+2]-time[itime+1]
-        if not np.isclose(dt,dt_next):
-            print(f"Inconsistent time-step detected in data at t={time[itime], dt, dt_next}. Skipping...")
-            skip=True
-            break
+    if args.enforce_uniform_time:
+        for itime in range(len(time)-2):
+            dt      = time[itime+1]-time[itime+0]
+            dt_next = time[itime+2]-time[itime+1]
+            if not np.isclose(dt,dt_next):
+                print(f"Inconsistent time-step detected in data at t={time[itime], dt, dt_next}. Skipping...")
+                skip=True
+                break
 
 
     if not np.isclose(time[0],0.,atol=1e-04):
         print(f"Start-time for data-set is not 0. Skipping...")
         skip=True
 
-    # Validate stop time
-    if motion == 'M1':
-        if not np.isclose(time[-1],1.):
-            print(f"End-time for data-set is not 1. Skipping...")
-            skip=True
-    elif motion == 'M2':
-        if not np.isclose(time[-1],40.):
-            print(f"End-time for data-set is not 40. Skipping...")
-            skip=True
+
+    if geometry == 'Airfoil':
+        # Validate stop time
+        if motion == 'M1' or motion == 'M2':
+            if not np.isclose(time[-1],2.):
+                print(f"End-time for Airfoil data-set is not 2. Skipping...")
+                skip=True
+    elif geometry == 'Cylinder':
+        # Validate stop time
+        if motion == 'M1':
+            if not np.isclose(time[-1],1.):
+                print(f"End-time for Cylinder data-set is not 1. Skipping...")
+                skip=True
+        elif motion == 'M2':
+            if not np.isclose(time[-1],40.):
+                print(f"End-time for Cylinder data-set is not 40. Skipping...")
+                skip=True
+
+    if geometry == 'Airfoil':
+        mass = np.nan
+        mass_error = np.nan
 
     return time,y_force,work_integrand,mass,mass_error,participant_integrals,skip
 
@@ -423,7 +464,7 @@ def display_time_convergence(geometries,groups,motions):
         
                             # Plot time-histories
                             if isinstance(data, np.ndarray):
-                                time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
+                                time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
                                 if not skip:
                                     integral = integrate.simps(y=y_force,x=time)
                                     diff = integral - prev
@@ -440,7 +481,7 @@ def display_time_convergence(geometries,groups,motions):
 
 
 
-def plot_convergence(geometry,motion,groups):
+def plot_convergence(geometry,motion,groups,group_truth_names):
     """ Compute differences in quantities from one time-level against a reference 
         space,time-resolved case. Plot spatial convergence. Plot time convergence as opacity variances.
 
@@ -449,66 +490,51 @@ def plot_convergence(geometry,motion,groups):
     """
     
     # Create figure
-    #fig = plt.figure(figsize=(16,4))
     fig = plt.figure(figsize=(18,4))
     fig.set_facecolor('White')
     axes = [fig.add_subplot(141), fig.add_subplot(142), fig.add_subplot(143), fig.add_subplot(144)]
 
 
 
-
-
     for group in groups:
         print(f"Processing convergence data for group: {group}...")
-    
-        # Read data-set configuration
-        f = open(f"{group}/{geometry}.json")
-        groups[group]['config'] = json.load(f)
-        color = groups[group]['color']
+
+        # Check if group includes {geometry.json}. If not, skip
+        if os.path.exists(f"{group}/{geometry}.json"):
+            # Read in config file up-front
+            f = open(f"{group}/{geometry}.json")
+            groups[group]['config'] = json.load(f)
+            color = groups[group]['color']
+        else:
+            continue
 
 
-        # Select + compute reference/truth quantities
+        # Make sure reference group configuration is loaded
+        if group_truth_names[geometry] is None:
+            # Use groups own reference/truth data-set
+            group_truth = groups[group]
+        else:
+            # Get particular groups data to use as truth-value for all data-sets
+            f = open(f"{group_truth_names[geometry][motion]}/{geometry}.json")
+            group_truth = group_dict
+            group_truth['config'] = json.load(f)
+
+
+        ref_h = group_truth['config']['reference']['h']
+        ref_p = group_truth['config']['reference']['p']
+        ref_t = group_truth['config']['reference']['t']
+        data = load_participant_data(group_truth_names[geometry][motion],geometry,motion,ref_h,ref_p,ref_t)
+        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
+        ref_yforce        = integrate.simps(y=y_force,       x=time)
+        ref_work          = integrate.simps(y=work_integrand,x=time)
         if geometry == 'Cylinder':
+            ref_mass          = integrate.simps(y=mass,          x=time)
 
-            # Compute integrated reference quantities
-            if args.use_group_truth:
-                
-                # Get groups own reference/truth data-set
-                ref_h = groups[group]['config']['reference']['h']
-                ref_p = groups[group]['config']['reference']['p']
-                ref_t = groups[group]['config']['reference']['t']
-
-                # Compute dof count
-                ndof_max = groups[group]['config'][ref_h] * groups[group]['config'][ref_p]
-
-                # Load max-resolution data
-                data = load_participant_data(group,geometry,motion,ref_h,ref_p,ref_t)
-
-                time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data('M1',data)
-                ref_yforce        = integrate.simps(y=y_force,       x=time)
-                ref_work          = integrate.simps(y=work_integrand,x=time)
-                ref_mass          = integrate.simps(y=mass,          x=time)
-                
-            else:
-                # Load max-resolution data
-                #data = load_participant_data('UM','Cylinder','M1',h='h3',p='p4',t='t4')
-                data = load_participant_data('UCB','Cylinder','M1',h='h5',p='p3',t='t6')
-                #data = load_participant_data('KU','Cylinder','M1',h='h3',p='p4',t='t2')
-                time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data('M1',data)
-                ref_yforce        = integrate.simps(y=y_force,       x=time)
-                ref_work          = integrate.simps(y=work_integrand,x=time)
-                ref_mass          = integrate.simps(y=mass,          x=time)
-                
-                # Compute analytical (exact) reference mass
-                volume  = np.pi*0.5*0.5
-                density = 1.
-                ref_mass = volume * density
-
-
-
-        elif geometry == 'Airfoil':
-            print("Airfoil reference data undefined")
-            sys.exit()
+        # Update reference mass calculation to be analytical quantity
+        if geometry == "Cylinder":
+            volume  = np.pi*0.5*0.5
+            density = 1.
+            ref_mass = volume * density
 
 
         # Get resolutions
@@ -549,10 +575,15 @@ def plot_convergence(geometry,motion,groups):
 
                 for ti,t in enumerate(ts):
                     print(f" {t} ",end="")
+
+                    ## If this data set is the reference data set, SKIP
+                    #if t==ref_t and p==ref_p and h==ref_h and group==use_group_ref:
+                    #    continue
+
                     # Load max time-resolution data
                     data = load_participant_data(group,geometry,motion,h=h,p=p,t=t)
                     if isinstance(data, np.ndarray):
-                        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
+                        time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
                         if h=='h1' and p=='p2':
                             print(t,skip)
                         if not skip:
@@ -562,8 +593,9 @@ def plot_convergence(geometry,motion,groups):
                             error_work[hi,pi,ti]    = np.abs(ref_work   - work_integral)
                             error_yforce0[hi,pi,ti] = np.abs(y_force[0])
 
-                            mass_integral         = integrate.simps(y=mass,x=time)
-                            error_mass[hi,pi,ti]  = np.abs(ref_mass   - mass_integral)
+                            if geometry == 'Cylinder':
+                                mass_integral         = integrate.simps(y=mass,x=time)
+                                error_mass[hi,pi,ti]  = np.abs(ref_mass   - mass_integral)
 
                             ## Compute mass error in L2
                             #error_mass_time = (ref_mass - mass[:])**2.
@@ -582,7 +614,8 @@ def plot_convergence(geometry,motion,groups):
             symbol = symbols[p]
             axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
             axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
-            axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
+            if geometry == 'Cylinder':
+                axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
             axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
             if args.time_opacity:
                 itime_end = -2
@@ -590,7 +623,8 @@ def plot_convergence(geometry,motion,groups):
                 while itime_end >= -len(ts):
                     axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
                     axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
-                    axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    if geometry == 'Cylinder':
+                        axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
                     axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
                     itime_end -= 1
                     alpha_plot -= 0.15
@@ -669,7 +703,8 @@ def plot_convergence(geometry,motion,groups):
     axes[0].set_ylim((1.e-10,5.e-1))
     axes[1].set_ylim((1.e-10,5.e-1))
     axes[2].set_ylim((1.e-10,5.e-1))
-    axes[3].set_ylim((1.e-10,5.e-1))
+    #axes[3].set_ylim((1.e-10,5.e-1))
+    axes[3].set_ylim((1.e-16,5.e-1))
 
 
     if args.save:
@@ -694,42 +729,51 @@ def plot_time_history(geometry,motion,groups):
     print(" ======================================================================")
     for group in groups:
 
-        # Read data-set configuration
-        f = open(f"{group}/{geometry}.json")
-        groups[group]['config'] = json.load(f)
+
+        # Check if group includes {geometry.json}. If not, skip
+        if os.path.exists(f"{group}/{geometry}.json"):
+            # Read in config file up-front
+            f = open(f"{group}/{geometry}.json")
+            groups[group]['config'] = json.load(f)
+            color = groups[group]['color']
+        else:
+            print(f"{group}/{geometry}.json does not exist.")
+            continue
+
 
         # Get max resolution
         hmax = groups[group]['config']['reference']['h']
         pmax = groups[group]['config']['reference']['p']
         tmax = groups[group]['config']['reference']['t']
 
-        # Compute dof count
-        ndof_max = groups[group]['config'][hmax] * groups[group]['config'][pmax]
+        print(" ")
+        print(f"{group}: {hmax},{pmax},{tmax})")
+        print("....................................................................")
 
         # Load max-resolution data
         data = load_participant_data(group,geometry,motion,hmax,pmax,tmax)
 
         # Plot time-histories
         if isinstance(data, np.ndarray):
-            time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(motion,data)
+            time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
 
             if not skip: 
                 groups[group]['integrals']['Y-Force'] = integrate.simps(y=y_force,        x=time)
                 groups[group]['integrals']['Work']    = integrate.simps(y=work_integrand, x=time)
-                groups[group]['integrals']['Mass']    = integrate.simps(y=mass,           x=time)
+                if geometry == 'Cylinder':
+                    groups[group]['integrals']['Mass']    = integrate.simps(y=mass,           x=time)
 
-                print(" ")
-                print(f"{group}: {hmax},{pmax},{tmax})")
-                print("....................................................................")
                 print('Y-Force', groups[group]['integrals']['Y-Force'])
                 print('Work',    groups[group]['integrals']['Work'])
-                print('Mass',    groups[group]['integrals']['Mass'])
+                if geometry == 'Cylinder':
+                    print('Mass',    groups[group]['integrals']['Mass'])
 
                 color = groups[group]['color']
                 axes[0].plot(time,y_force,        color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
                 axes[1].plot(time,work_integrand, color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                axes[2].plot(time,mass,           color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                axes[3].plot(time,mass_error,     color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                if geometry == 'Cylinder':
+                    axes[2].plot(time,mass,           color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                    axes[3].plot(time,mass_error,     color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
 
         else:
             # End line
@@ -751,10 +795,22 @@ def plot_time_history(geometry,motion,groups):
     axes[2].set_ylabel('Mass')
     axes[3].set_ylabel('Mass error')
     
-    axes[0].set_xlim((0.,1.))
-    axes[1].set_xlim((0.,1.))
-    axes[2].set_xlim((0.,1.))
-    axes[3].set_xlim((0.,1.))
+    if geometry == "Airfoil":
+        axes[0].set_xlim((0.,2.))
+        axes[1].set_xlim((0.,2.))
+        axes[2].set_xlim((0.,2.))
+        axes[3].set_xlim((0.,2.))
+    elif geometry == "Cylinder":
+        if motion == "M1":
+            axes[0].set_xlim((0.,1.))
+            axes[1].set_xlim((0.,1.))
+            axes[2].set_xlim((0.,1.))
+            axes[3].set_xlim((0.,1.))
+        elif motion == "M2":
+            axes[0].set_xlim((0.,40.))
+            axes[1].set_xlim((0.,40.))
+            axes[2].set_xlim((0.,40.))
+            axes[3].set_xlim((0.,40.))
 
     if args.save:
         fig.savefig(f'{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=800)

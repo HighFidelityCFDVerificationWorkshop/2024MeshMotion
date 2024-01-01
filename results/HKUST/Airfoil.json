@@ -1,0 +1,5 @@
+{"h1":4270, "h2":6006, "h3":10982,
+ "p2":3,
+ "t0":10,
+ "reference":{"h":"h3","p":"p2","t":"t0"}, 
+ "TimeIntegrator":"S2O4","TimeOrder":4}

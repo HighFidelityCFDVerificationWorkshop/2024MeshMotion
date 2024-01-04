@@ -607,12 +607,13 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
                             #error_mass[hi,pi,ti] = np.sqrt(mass_integral)
                 print("")
 
-        print(error_mass)
 
         symbols = {'p1':'o','p2':'^','p3':'s','p4':'p'}
         for pi,p in enumerate(ps):
                 print("")
 
+        print('error yforce')
+        print(error_yforce)
         symbols = {'p1':'o','p2':'^','p3':'s','p4':'p'}
         for pi,p in enumerate(ps):
             symbol = symbols[p]
@@ -814,10 +815,10 @@ def plot_time_history(geometry,motion,groups):
             axes[2].set_xlim((0.,1.))
             axes[3].set_xlim((0.,1.))
         elif motion == "M2":
-            axes[0].set_xlim((0.,40.))
-            axes[1].set_xlim((0.,40.))
-            axes[2].set_xlim((0.,40.))
-            axes[3].set_xlim((0.,40.))
+            axes[0].set_xlim((0.,5.))
+            axes[1].set_xlim((0.,5.))
+            axes[2].set_xlim((0.,5.))
+            axes[3].set_xlim((0.,5.))
 
     if args.save:
         fig.savefig(f'{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=800)

@@ -80,8 +80,9 @@ def main():
         group_list.append('KU')
     if 'HKUST'  in args.groups or 'all' in args.groups:
         group_list.append('HKUST')
-    #if 'MIT'  in args.groups or 'all' in args.groups:
-    #    group_list.append('MIT')
+    if 'MIT'  in args.groups or 'all' in args.groups:
+        group_list.append('MIT')
+
     groups = {}
     for g in group_list:
         groups[g] = group_dict.copy()
@@ -98,8 +99,8 @@ def main():
         groups['KU']['color'] = 'g'
     if 'HKUST'  in args.groups or 'all' in args.groups:
         groups['HKUST']['color'] = 'k'
-    #if 'MIT'  in args.groups or 'all' in args.groups:
-    #    groups['MIT']['color'] = 'k'
+    if 'MIT'  in args.groups or 'all' in args.groups:
+        groups['MIT']['color'] = 'c'
     
 
     

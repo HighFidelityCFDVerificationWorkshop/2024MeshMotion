@@ -32,8 +32,8 @@ parser.add_argument("--geometries", nargs="+", default=[], help="Select geometry
 parser.add_argument("--groups", nargs="+", default=[])
 parser.add_argument("--motions", nargs="+", default=[])
 parser.add_argument("--porders", nargs="+", default=[])
-parser.add_argument("--cylinder-ref",  default={"M1":'UCB',"M2":'HKUST'}, help="Reference group data set for truth-value in cylinder convergence studies.")
-parser.add_argument("--airfoil-ref",  default={"M1":'UCB',"M2":'UCB'}, help="Reference group data set for truth-value in airfoil convergence studies.")
+parser.add_argument("--cylinder-ref",  default={"M1":'UCB',"M2":'UM'}, help="Reference group data set for truth-value in cylinder convergence studies.")
+parser.add_argument("--airfoil-ref",  default={"C1":'UCB',"C2":'UCB',"C3":'UCB',"C4":'UCB'}, help="Reference group data set for truth-value in airfoil convergence studies.")
 args = parser.parse_args()
 
 
@@ -80,8 +80,9 @@ def main():
         group_list.append('KU')
     if 'HKUST'  in args.groups or 'all' in args.groups:
         group_list.append('HKUST')
-    #if 'MIT'  in args.groups or 'all' in args.groups:
-    #    group_list.append('MIT')
+    if 'MIT'  in args.groups or 'all' in args.groups:
+        group_list.append('MIT')
+
     groups = {}
     for g in group_list:
         groups[g] = group_dict.copy()
@@ -98,23 +99,35 @@ def main():
         groups['KU']['color'] = 'g'
     if 'HKUST'  in args.groups or 'all' in args.groups:
         groups['HKUST']['color'] = 'k'
-    #if 'MIT'  in args.groups or 'all' in args.groups:
-    #    groups['MIT']['color'] = 'k'
+    if 'MIT'  in args.groups or 'all' in args.groups:
+        groups['MIT']['color'] = 'c'
     
-
-    # Assemble list of motions to post-process
-    motions = []
-    if 'M1' in args.motions or 'all' in args.motions:
-        motions.append('M1')
-    if 'M2' in args.motions or 'all' in args.motions:
-        motions.append('M2')
 
     
     # Plot spatial convergence with temporal convergence as opacity
     conv_figs = []
+    hist_figs = []
     group_ref = {}
     for geometry in geometry_list:
 
+        # Assemble list of motions to post-process
+        motions = []
+        if geometry == 'Cylinder':
+            if 'M1' in args.motions or 'all' in args.motions:
+                motions.append('M1')
+            if 'M2' in args.motions or 'all' in args.motions:
+                motions.append('M2')
+        elif geometry == 'Airfoil':
+            if 'C1' in args.motions or 'all' in args.motions:
+                motions.append('C1')
+            if 'C2' in args.motions or 'all' in args.motions:
+                motions.append('C2')
+            if 'C3' in args.motions or 'all' in args.motions:
+                motions.append('C3')
+            if 'C4' in args.motions or 'all' in args.motions:
+                motions.append('C4')
+
+        # Select which group truth value to use
         group_ref = {}
         if args.use_group_truth:
             group_ref['Cylinder'] = None
@@ -125,21 +138,11 @@ def main():
 
         for motion in motions:
             conv_figs.append(plot_convergence(geometry,motion,groups,group_ref))
-
-    # Plot time-histories
-    hist_figs = []
-    for geometry in geometry_list:
-        for motion in motions:
             hist_figs.append(plot_time_history(geometry,motion,groups))
 
 
     if args.plot:
         plt.show()
-
-
-
-
-
 
 
 
@@ -520,9 +523,10 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
             group_truth['config'] = json.load(f)
 
 
-        ref_h = group_truth['config']['reference']['h']
-        ref_p = group_truth['config']['reference']['p']
-        ref_t = group_truth['config']['reference']['t']
+        ref_h = group_truth['config']['reference'][motion]['h']
+        ref_p = group_truth['config']['reference'][motion]['p']
+        ref_t = group_truth['config']['reference'][motion]['t']
+
         data = load_participant_data(group_truth_names[geometry][motion],geometry,motion,ref_h,ref_p,ref_t)
         time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
         ref_yforce        = integrate.simps(y=y_force,       x=time)
@@ -742,9 +746,12 @@ def plot_time_history(geometry,motion,groups):
 
 
         # Get max resolution
-        hmax = groups[group]['config']['reference']['h']
-        pmax = groups[group]['config']['reference']['p']
-        tmax = groups[group]['config']['reference']['t']
+        if motion in groups[group]['config']['reference']:
+            hmax = groups[group]['config']['reference'][motion]['h']
+            pmax = groups[group]['config']['reference'][motion]['p']
+            tmax = groups[group]['config']['reference'][motion]['t']
+        else:
+            continue
 
         print(" ")
         print(f"{group}: {hmax},{pmax},{tmax})")

@@ -72,6 +72,8 @@ def main():
     group_list = []
     if 'UM' in args.groups or 'all' in args.groups:
         group_list.append('UM')
+    if 'UMTri' in args.groups or 'all' in args.groups:
+        group_list.append('UMTri')
     if 'UCB' in args.groups or 'all' in args.groups:
         group_list.append('UCB')
     if 'AFRL'  in args.groups or 'all' in args.groups:
@@ -91,6 +93,8 @@ def main():
     # Specialize dictionaries for plotting
     if 'UM' in args.groups or 'all' in args.groups:
         groups['UM']['color'] = 'y'
+    if 'UMTri' in args.groups or 'all' in args.groups:
+        groups['UMTri']['color'] = 'orange'
     if 'UCB' in args.groups or 'all' in args.groups:
         groups['UCB']['color'] = 'r'
     if 'AFRL'  in args.groups or 'all' in args.groups:
@@ -612,25 +616,23 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
         for pi,p in enumerate(ps):
                 print("")
 
-        print('error yforce')
-        print(error_yforce)
         symbols = {'p1':'o','p2':'^','p3':'s','p4':'p'}
         for pi,p in enumerate(ps):
             symbol = symbols[p]
-            axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
-            axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
+            axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
+            axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
             if geometry == 'Cylinder':
-                axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
-            axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,-1]),symbol+color+'-',label=f"{group}: {p}",linewidth=1.0)
+                axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
+            axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
             if args.time_opacity:
                 itime_end = -2
                 alpha_plot = 0.9
                 while itime_end >= -len(ts):
-                    axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
-                    axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,itime_end]),symbol+'--',color=color,markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,itime_end]),symbol+'--',color=color,markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
                     if geometry == 'Cylinder':
-                        axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
-                    axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,itime_end]),symbol+color+'--',markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                        axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,itime_end]),symbol+'--',color=color,markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
+                    axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,itime_end]),symbol+'--',color=color,markerfacecolor='none',linewidth=1.0,alpha=alpha_plot)
                     itime_end -= 1
                     alpha_plot -= 0.15
 
@@ -734,7 +736,6 @@ def plot_time_history(geometry,motion,groups):
     print(" ======================================================================")
     for group in groups:
 
-
         # Check if group includes {geometry.json}. If not, skip
         if os.path.exists(f"{group}/{geometry}.json"):
             # Read in config file up-front
@@ -766,10 +767,10 @@ def plot_time_history(geometry,motion,groups):
             time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
 
             if not skip: 
-                groups[group]['integrals']['Y-Force'] = integrate.simps(y=y_force,        x=time)
-                groups[group]['integrals']['Work']    = integrate.simps(y=work_integrand, x=time)
+                groups[group]['integrals']['Y-Force']  = integrate.simps(y=y_force,        x=time)
+                groups[group]['integrals']['Work']     = integrate.simps(y=work_integrand, x=time)
                 if geometry == 'Cylinder':
-                    groups[group]['integrals']['Mass']    = integrate.simps(y=mass,           x=time)
+                    groups[group]['integrals']['Mass'] = integrate.simps(y=mass,           x=time)
 
                 print('Y-Force', groups[group]['integrals']['Y-Force'])
                 print('Work',    groups[group]['integrals']['Work'])
@@ -777,11 +778,11 @@ def plot_time_history(geometry,motion,groups):
                     print('Mass',    groups[group]['integrals']['Mass'])
 
                 color = groups[group]['color']
-                axes[0].plot(time,y_force,        color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                axes[1].plot(time,work_integrand, color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                axes[0].plot(time,y_force,       '--',color=color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                axes[1].plot(time,work_integrand,'--',color=color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
                 if geometry == 'Cylinder':
-                    axes[2].plot(time,mass,           color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
-                    axes[3].plot(time,mass_error,     color+'--',linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                    axes[2].plot(time,mass,      '--',color=color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
+                    axes[3].plot(time,mass_error,'--',color=color,linewidth=1.0,label=f"{group}: {hmax}-{pmax}-{tmax}")
 
         else:
             # End line

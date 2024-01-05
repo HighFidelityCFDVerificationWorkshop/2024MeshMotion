@@ -1,5 +1,5 @@
 {"h0":140, "h1":565, "h2":2251, "h3":8958, 
  "p1":3, "p2":6, "p3":10, "p4":15, 
  "t0":64, "t1":128, "t2":256, "t3":512, "t4":1024,
- "reference":{"h":"h3","p":"p4","t":"t4"}, 
+ "reference":{"M1":{"h":"h2","p":"p3","t":"t4"}}, 
  "TimeIntegrator":"MEBDF3","TimeOrder":4,"NonlinearSolvesPerTimeStep":3}

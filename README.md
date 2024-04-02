@@ -44,14 +44,14 @@ The following Motion-Index convention should be used:
 - `Airfoil-C3` = 2024 Airfoil, Mach .01, Motion 1 - Heaving
 - `Airfoil-C4` = 2024 Airfoil, Mach .01, Motion 2 - Heaving + Pitching
 
-Groups should also submit a `<motion>.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom per equation in a spatial element across `p`-indices. A reference dictionary prescribing `h`,`p`,`t` indices for a reference fine-space dataset should also be included. Meta-data for time integration scheme, temporal order and number of nonlinear solves per time-step may be included for completeness. For example, a data submission for cylinder results should include a file `Cylinder.json` with example contents:
+Groups should also submit a `<motion>.json` in their submission folder that describes the number of elements corresponding to each `h`-index, as well as the number of solution degrees-of-freedom per equation in a spatial element across `p`-indices. A reference dictionary prescribing `h`,`p`,`t` indices for a reference fine-space dataset for each motion should also be included. Meta-data for time integration scheme, temporal order and number of nonlinear solves per time-step may be included for completeness. For example, a data submission for cylinder results should include a file `Cylinder.json` with example contents:
 ```
 {"h0":420, "h1":1680, "h2":6720, "h3":26880, 
  "p1":8, "p2":27, "p3":64,
  "t0":10, "t1":20, "t2":40, "t3":80, "t4":160, 
- "reference":{"h":"h3","p":"p1","t":"t4"}, 
+ "reference":{"M1":{"h":"h3","p":"p1","t":"t4"}, 
+              "M2":{"h":"h3","p":"p1","t":"t4"}}, 
  "TimeIntegrator":"DIRK3","TimeOrder":3,"NonlinearSolvesPerTimeStep":3}
-
 ```
 
 

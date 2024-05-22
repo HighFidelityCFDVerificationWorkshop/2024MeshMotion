@@ -707,12 +707,35 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
     axes[2].set_xlim((2.e-5,2.e-1))
     axes[3].set_xlim((2.e-5,2.e-1))
 
-    axes[0].set_ylim((1.e-10,5.e-1))
-    axes[1].set_ylim((1.e-10,5.e-1))
-    axes[2].set_ylim((1.e-10,5.e-1))
-    #axes[3].set_ylim((1.e-10,5.e-1))
-    axes[3].set_ylim((1.e-16,5.e-1))
+    if geometry == 'Airfoil':
+        if motion == 'C2':
+            axes[0].set_ylim((1.e-10,2.e-0))
+            axes[1].set_ylim((1.e-10,2.e-0))
+            axes[2].set_ylim((1.e-10,2.e-0))
+            axes[3].set_ylim((1.e-16,2.e-0))
+        else:
+            axes[0].set_ylim((1.e-10,2.e-0))
+            axes[1].set_ylim((1.e-10,2.e-0))
+            axes[2].set_ylim((1.e-10,2.e-0))
+            axes[3].set_ylim((1.e-16,2.e-0))
 
+    else:
+        if motion == 'M1':
+            axes[0].set_ylim((1.e-10,5.e-1))
+            axes[1].set_ylim((1.e-10,5.e-1))
+            axes[2].set_ylim((1.e-10,5.e-1))
+            axes[3].set_ylim((1.e-16,5.e-1))
+        elif motion == 'M2':
+            axes[0].set_ylim((1.e-10,5.e-1))
+            axes[1].set_ylim((1.e-10,20.0  ))
+            axes[2].set_ylim((1.e-10,5.e-1))
+            axes[3].set_ylim((1.e-16,5.e-1))
+        else:
+            axes[0].set_ylim((1.e-10,5.e-1))
+            axes[1].set_ylim((1.e-10,5.e-1))
+            axes[2].set_ylim((1.e-10,5.e-1))
+            axes[3].set_ylim((1.e-16,5.e-1))
+    
 
     if args.save:
         fig.savefig(f'{geometry}_{motion}_Convergence.png', bbox_inches='tight', dpi=800)
@@ -816,13 +839,18 @@ def plot_time_history(geometry,motion,groups):
             axes[2].set_xlim((0.,1.))
             axes[3].set_xlim((0.,1.))
         elif motion == "M2":
-            axes[0].set_xlim((0.,5.))
-            axes[1].set_xlim((0.,5.))
-            axes[2].set_xlim((0.,5.))
-            axes[3].set_xlim((0.,5.))
+            #axes[0].set_xlim((0.,5.))
+            #axes[1].set_xlim((0.,5.))
+            #axes[2].set_xlim((0.,5.))
+            #axes[3].set_xlim((0.,5.))
+
+            axes[0].set_xlim((0.,40.))
+            axes[1].set_xlim((0.,40.))
+            axes[2].set_xlim((0.,40.))
+            axes[3].set_xlim((0.,40.))
 
     if args.save:
-        fig.savefig(f'{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=800)
+        fig.savefig(f'{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=1600)
 
     return fig
 

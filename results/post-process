@@ -22,13 +22,13 @@ for geometry in geometries:
             if not os.path.exists(post_dir):
                 os.makedirs(post_dir)
     
-            os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group} --save --save-folder {post_dir}')
-            os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group} --save --save-folder {post_dir} --time-opacity ')
+            os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group} --save --save-folder {post_dir} --image-dpi 400')
+            os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group} --save --save-folder {post_dir} --time-opacity --image-dpi 400 ')
 
 
         post_dir = f'post/{geometry}'
-        os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group_all_string} --save --save-folder {post_dir}')
-        os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group_all_string} --save --save-folder {post_dir} --time-opacity ')
+        os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group_all_string} --save --save-folder {post_dir} --image-dpi 400')
+        os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group_all_string} --save --save-folder {post_dir} --time-opacity  --image-dpi 400')
 
 
 

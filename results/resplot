@@ -27,6 +27,7 @@ parser.add_argument("--time-opacity", action='store_true', default=False, help="
 parser.add_argument("--enforce-uniform-time", action='store_true', default=False, help="Enforce time-sampling must be uniform")
 parser.add_argument("--save", action='store_true', default=False, help="Save time-histories and convergence to image files.")
 parser.add_argument("--save-folder",  default=".", help="Sub-folder to save images to")
+parser.add_argument("--image-dpi", default=800, type=int, help="image resolution")
 parser.add_argument("--slopes", action='store_true', default=False, help="Plot reference convergence slopes.")
 parser.add_argument("--use-group-truth", action='store_true', default=False, help="Use groups own truth value (as opposed to a common across all data-sets.)")
 parser.add_argument("--geometries", nargs="+", default=[], help="Select geometry configuration(s) for post-processing")
@@ -765,7 +766,7 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
     
 
     if args.save and data_detected:
-        fig.savefig(f'{args.save_folder}/{geometry}_{motion}_Convergence_Opaque-{args.time_opacity}.png', bbox_inches='tight', dpi=800)
+        fig.savefig(f'{args.save_folder}/{geometry}_{motion}_Convergence_Opaque-{args.time_opacity}.png', bbox_inches='tight', dpi=args.image_dpi)
 
     return fig
 
@@ -881,7 +882,8 @@ def plot_time_history(geometry,motion,groups):
             axes[3].set_xlim((0.,40.))
 
     if args.save and data_detected:
-        fig.savefig(f'{args.save_folder}/{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=1600)
+        #fig.savefig(f'{args.save_folder}/{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=1600)
+        fig.savefig(f'{args.save_folder}/{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=args.image_dpi)
 
     return fig
 

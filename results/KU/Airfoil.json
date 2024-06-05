@@ -1,0 +1,5 @@
+{"h0":978,
+ "p1":3, "p2":6, "p3":10,
+ "t0":2000,
+ "reference":{"C1":{"h":"h0","p":"p3","t":"t0"}},
+ "TimeIntegrator":"SSP-RK2","TimeOrder":2}

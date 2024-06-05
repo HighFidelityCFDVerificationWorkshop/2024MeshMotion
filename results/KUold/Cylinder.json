@@ -1,6 +1,6 @@
 {"h0":28, "h1":96, "h2":352, "h3":1344, "h4":5248, 
  "p2":9, "p3":16, "p4":25,
  "t0":1600, "t1":25600, "t2":51200, 
- "reference":{"M1":{"h":"h3","p":"p4","t":"t2","tconv_max":"t0"}, 
-              "M2":{"h":"h4","p":"p4","t":"t2","tconv_max":"t2"}}, 
+ "reference":{"M1":{"h":"h3","p":"p4","t":"t9","tconv_max":"t4"}, 
+              "M2":{"h":"h4","p":"p4","t":"t9","tconv_max":"t9"}}, 
  "TimeIntegrator":"CN-LUSGS","TimeOrder":2}

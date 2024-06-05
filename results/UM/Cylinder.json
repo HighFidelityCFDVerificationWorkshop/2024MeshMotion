@@ -1,6 +1,6 @@
 {"h0":20, "h1":80, "h2":320, "h3":1280, 
  "p1":4, "p2":9, "p3":16, "p4":25, 
  "t0":64, "t1":128, "t2":256, "t3":512, "t4":1024,
- "reference":{"M1":{"h":"h3","p":"p4","t":"t4"},
-              "M2":{"h":"h2","p":"p3","t":"t1"}},
+ "reference":{"M1":{"h":"h3","p":"p4","t":"t4","tconv_max":"t4"},
+              "M2":{"h":"h2","p":"p3","t":"t1","tconv_max":"t1"}},
  "TimeIntegrator":"MEBDF3","TimeOrder":4,"NonlinearSolvesPerTimeStep":3}

@@ -1,1 +1,1 @@
-{"h1": 774144, "pts-across-c1": 192, "h2": 1376256, "pts-across-c2": 256, "h3": 3096576, "pts-across-c3": 384, "h4": 5505024, "pts-across-c4": 512, "p1": 2, "t1": 3, "reference": {"C3": {"h": "h4", "p": "p1", "t": "t1"}}}
+{"h1": 774144, "pts-across-c1": 192, "h2": 1376256, "pts-across-c2": 256, "h3": 3096576, "pts-across-c3": 384, "h4": 5505024, "pts-across-c4": 512, "p1": 2, "t1": 3, "reference": {"C3": {"h": "h4", "p": "p1", "t": "t1","tconv_max":"t1"}}}

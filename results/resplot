@@ -22,17 +22,18 @@ rcParams.update({'figure.autolayout': True})
     
 # Arguments
 parser = argparse.ArgumentParser(description='results parser for high-fidelity CFD verification workshop: mesh motion test suite')
-parser.add_argument("--plot", action='store_true', default=False, help="Save time-histories to image files.")
+parser.add_argument("--plot", action='store_true', default=False, help="Plot time-histories and convergence to screen.")
 parser.add_argument("--time-opacity", action='store_true', default=False, help="Plot time-convergence as opacity.")
 parser.add_argument("--enforce-uniform-time", action='store_true', default=False, help="Enforce time-sampling must be uniform")
-parser.add_argument("--save", action='store_true', default=False, help="Plot time-histories to image files.")
+parser.add_argument("--save", action='store_true', default=False, help="Save time-histories and convergence to image files.")
+parser.add_argument("--save-folder",  default=".", help="Sub-folder to save images to")
 parser.add_argument("--slopes", action='store_true', default=False, help="Plot reference convergence slopes.")
 parser.add_argument("--use-group-truth", action='store_true', default=False, help="Use groups own truth value (as opposed to a common across all data-sets.)")
 parser.add_argument("--geometries", nargs="+", default=[], help="Select geometry configuration(s) for post-processing")
 parser.add_argument("--groups", nargs="+", default=[])
 parser.add_argument("--motions", nargs="+", default=[])
 parser.add_argument("--porders", nargs="+", default=[])
-parser.add_argument("--cylinder-ref",  default={"M1":'UCB',"M2":'UM'}, help="Reference group data set for truth-value in cylinder convergence studies.")
+parser.add_argument("--cylinder-ref",  default={"M1":'UCB',"M2":'UCB'}, help="Reference group data set for truth-value in cylinder convergence studies.")
 parser.add_argument("--airfoil-ref",  default={"C1":'UCB',"C2":'UCB',"C3":'UCB',"C4":'UCB'}, help="Reference group data set for truth-value in airfoil convergence studies.")
 args = parser.parse_args()
 
@@ -40,7 +41,7 @@ args = parser.parse_args()
 # Reference indices
 h_list = np.array(['hmm','hm','h0','h1','h2','h3','h4','h5'])
 p_list = np.array(['p0','p1','p2','p3','p4','p5','p6'])
-t_list = np.array(['t0','t1','t2','t3','t4','t5'])
+t_list = np.array(['t0','t1','t2','t3','t4','t5','t6','t7','t8','t9'])
 
 # Initialize group dictionaries 
 group_dict = {'color':'k',
@@ -501,7 +502,8 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
     fig.set_facecolor('White')
     axes = [fig.add_subplot(141), fig.add_subplot(142), fig.add_subplot(143), fig.add_subplot(144)]
 
-
+    # Flag determining if any valid data was detected and plotted from any groups, if not, we won't plot/save a figure
+    data_detected = False
 
     for group in groups:
         print(f"Processing convergence data for group: {group}...")
@@ -509,11 +511,18 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
         # Check if group includes {geometry.json}. If not, skip
         if os.path.exists(f"{group}/{geometry}.json"):
             # Read in config file up-front
+            data_found = True
             f = open(f"{group}/{geometry}.json")
             groups[group]['config'] = json.load(f)
             color = groups[group]['color']
+
+            # Test if data-set exists for current motion
+            if motion not in groups[group]['config']['reference']:
+                continue
+
         else:
             continue
+
 
 
         # Make sure reference group configuration is loaded
@@ -591,9 +600,10 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
                     # Load max time-resolution data
                     data = load_participant_data(group,geometry,motion,h=h,p=p,t=t)
                     if isinstance(data, np.ndarray):
+                        data_detected = True
                         time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
-                        if h=='h1' and p=='p2':
-                            print(t,skip)
+                        #if h=='h1' and p=='p2':
+                        #    print(t,skip)
                         if not skip:
                             yforce_integral = integrate.simps(y=y_force,       x=time)
                             work_integral   = integrate.simps(y=work_integrand,x=time)
@@ -604,6 +614,17 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
                             if geometry == 'Cylinder':
                                 mass_integral         = integrate.simps(y=mass,x=time)
                                 error_mass[hi,pi,ti]  = np.abs(ref_mass   - mass_integral)
+
+
+
+                            # Account for case where reference value and working value are 
+                            # the same and eliminate that result in plotting convergence
+                            # since it doesn't make sense to measure a value against itself.
+                            if error_yforce[hi,pi,ti] < 1.e-10:
+                                error_yforce[hi,pi,ti] = np.nan
+                                error_work[hi,pi,ti] = np.nan
+                                error_yforce0[hi,pi,ti] = np.nan
+                                error_mass[hi,pi,ti] = np.nan
 
                             ## Compute mass error in L2
                             #error_mass_time = (ref_mass - mass[:])**2.
@@ -618,12 +639,18 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
 
         symbols = {'p1':'o','p2':'^','p3':'s','p4':'p'}
         for pi,p in enumerate(ps):
+
+            # Get index of t-ref
+            tmax = groups[group]['config']['reference'][motion]['tconv_max']
+            tmax_index = ts.index(tmax)
+
+
             symbol = symbols[p]
-            axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
-            axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
+            axes[0].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce[ :,pi,tmax_index]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
+            axes[1].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_work[   :,pi,tmax_index]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
             if geometry == 'Cylinder':
-                axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
-            axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,-1]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
+                axes[2].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_mass[   :,pi,tmax_index]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
+            axes[3].loglog(1./np.sqrt(ndof[:,pi]),np.abs(error_yforce0[:,pi,tmax_index]),symbol+'-',color=color,label=f"{group}: {p}",linewidth=1.0)
             if args.time_opacity:
                 itime_end = -2
                 alpha_plot = 0.9
@@ -737,8 +764,8 @@ def plot_convergence(geometry,motion,groups,group_truth_names):
             axes[3].set_ylim((1.e-16,5.e-1))
     
 
-    if args.save:
-        fig.savefig(f'{geometry}_{motion}_Convergence.png', bbox_inches='tight', dpi=800)
+    if args.save and data_detected:
+        fig.savefig(f'{args.save_folder}/{geometry}_{motion}_Convergence_Opaque-{args.time_opacity}.png', bbox_inches='tight', dpi=800)
 
     return fig
 
@@ -751,6 +778,8 @@ def plot_time_history(geometry,motion,groups):
     fig.set_facecolor('White')
     axes = [fig.add_subplot(141), fig.add_subplot(142), fig.add_subplot(143), fig.add_subplot(144)]
 
+    # Flag determining if any valid data was detected and plotted from any groups, if not, we won't plot/save a figure
+    data_detected = False
 
     # Plot time-histories
     print(" ")
@@ -790,6 +819,8 @@ def plot_time_history(geometry,motion,groups):
             time,y_force,work_integrand,mass,mass_error,participant_integrals,skip = process_data(geometry,motion,data)
 
             if not skip: 
+                data_detected = True
+
                 groups[group]['integrals']['Y-Force']  = integrate.simps(y=y_force,        x=time)
                 groups[group]['integrals']['Work']     = integrate.simps(y=work_integrand, x=time)
                 if geometry == 'Cylinder':
@@ -849,8 +880,8 @@ def plot_time_history(geometry,motion,groups):
             axes[2].set_xlim((0.,40.))
             axes[3].set_xlim((0.,40.))
 
-    if args.save:
-        fig.savefig(f'{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=1600)
+    if args.save and data_detected:
+        fig.savefig(f'{args.save_folder}/{geometry}_{motion}_Histories.png', bbox_inches='tight', dpi=1600)
 
     return fig
 

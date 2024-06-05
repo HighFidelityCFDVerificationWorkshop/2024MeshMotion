@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+import os
+
+
+# Cylinder post-processing
+groups = ['UM','UCB','KU','AFRL','MIT']
+
+group_all_string = ""
+for group in groups:
+    group_all_string = group_all_string + f" {group}"
+
+
+geometries = {'Cylinder':['M1','M2'],'Airfoil':['C1','C2','C3','C4']}
+
+#motions = ['M1','M2']
+for geometry in geometries:
+    motions = geometries[geometry]
+    for motion in motions:
+        for group in groups:
+    
+            post_dir = f'post/{geometry}/{group}'
+            if not os.path.exists(post_dir):
+                os.makedirs(post_dir)
+    
+            os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group} --save --save-folder {post_dir}')
+            os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group} --save --save-folder {post_dir} --time-opacity ')
+
+
+        post_dir = f'post/{geometry}'
+        os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group_all_string} --save --save-folder {post_dir}')
+        os.system(f'./resplot --geometries {geometry} --motion {motion} --groups {group_all_string} --save --save-folder {post_dir} --time-opacity ')
+
+
+
+
+
